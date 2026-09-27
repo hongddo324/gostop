@@ -1,3 +1,4 @@
+import { RULES } from './rules';
 import type { PlayerSeat } from './types';
 
 /** 거실 좌석 배치. 나는 항상 하단(bottom). */
@@ -8,11 +9,15 @@ export const SEATS: readonly PlayerSeat[] = [
   { id: 'father-in-law', name: '장인어른', position: 'right', isHuman: false },
 ];
 
-/** 참관(훈수) 좌석을 제외한 3명의 플레이어와 참관자를 분리 */
+/** 훈수(광 판 사람) 좌석을 제외한 3명의 플레이어와 훈수를 분리 */
 export function splitSeats(observerId: string): { players: PlayerSeat[]; observer: PlayerSeat } {
   const observer = SEATS.find((s) => s.id === observerId);
-  if (!observer || observer.isHuman) {
-    throw new Error(`참관자로 지정할 수 없는 좌석입니다: ${observerId}`);
-  }
+  if (!observer) throw new Error(`없는 좌석입니다: ${observerId}`);
   return { players: SEATS.filter((s) => s.id !== observerId), observer };
+}
+
+/** 이번 판에 광을 팔 사람(=훈수)을 무작위로 뽑는다 */
+export function pickGwangSeller(rng: () => number = Math.random): PlayerSeat {
+  const pool = RULES.gwangSellerCandidates === 'all' ? SEATS : SEATS.filter((s) => !s.isHuman);
+  return pool[Math.floor(rng() * pool.length)]!;
 }

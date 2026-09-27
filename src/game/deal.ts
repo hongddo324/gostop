@@ -1,4 +1,5 @@
 import { createDeck } from './cards';
+import { RULES } from './rules';
 import type { GameState, HwatuCard, PlayerSeat, SeatPosition } from './types';
 
 export const HAND_SIZE = 7;
@@ -40,8 +41,10 @@ function fieldHasFourOfMonth(field: HwatuCard[]): boolean {
 }
 
 /**
- * 3인 고스톱 분배: 플레이어당 7장, 바닥 6장, 나머지 23장(보너스 2장 포함)은 더미.
- * 바닥에 보너스패가 깔리면 선(첫 차례)이 가져가고 더미에서 1장을 채운다.
+ * 4인 광 팔기 + 3인 고스톱 분배.
+ *  1) 광 팔 사람(observer)이 먼저 7장을 받아 광을 세고 판 뒤, 그 7장은 더미 맨 아래로 돌려 놓는다.
+ *  2) 플레이어 3명 7장씩, 바닥 6장, 나머지 23장(보너스 2장 포함)은 더미.
+ *  3) 바닥에 보너스패가 깔리면 선(첫 차례)이 가져가고 더미에서 1장을 채운다.
  * 실제 화투 분배 순서(4-3-3 등)는 연출 단계에서 처리하고, 여기서는 결과만 계산한다.
  */
 export function dealGame(
@@ -62,6 +65,7 @@ export function dealGame(
       cursor += n;
       return out;
     };
+    const sellerHand = sortHand(take(HAND_SIZE));
     const playerStates = ordered.map((seat) => ({
       seat,
       hand: sortHand(take(HAND_SIZE)),
@@ -78,11 +82,18 @@ export function dealGame(
     }
     if (fieldHasFourOfMonth(field) && attempt < 100) continue;
 
+    const gwangCount = sellerHand.filter((c) => c.type === 'gwang').length;
     return {
       players: playerStates,
       observer,
+      gwangSale: {
+        sellerId: observer.id,
+        hand: sellerHand,
+        gwangCount,
+        pricePerPlayer: gwangCount * RULES.gwangPrice,
+      },
       field,
-      deck: deck.slice(cursor),
+      deck: [...deck.slice(cursor), ...sellerHand],
       current: 0,
       phase: 'play',
       turn: { playedMatch: 0 },

@@ -99,6 +99,16 @@ export interface LoserSettlement {
   readonly points: number;
 }
 
+/** 광 팔기: 4명 중 1명이 받은 패의 광을 팔고 빠져 훈수를 둔다 */
+export interface GwangSale {
+  readonly sellerId: string;
+  /** 광 판 사람이 받았던 7장 (판 뒤 더미 맨 아래로 돌아감) */
+  readonly hand: HwatuCard[];
+  readonly gwangCount: number;
+  /** 플레이어 1명이 내는 광값 */
+  readonly pricePerPlayer: number;
+}
+
 export interface GameResult {
   /** null = 나가리(무승부) */
   readonly winnerId: string | null;
@@ -112,8 +122,9 @@ export interface GameResult {
 export interface GameState {
   /** 실제 플레이 중인 3명 — 배열 순서가 곧 턴 순서(반시계: 나 → 오른쪽 → 위 → 왼쪽) */
   readonly players: PlayerState[];
-  /** 참관/훈수 좌석 */
+  /** 광 판 사람 = 훈수 좌석 */
   readonly observer: PlayerSeat;
+  readonly gwangSale: GwangSale;
   readonly field: HwatuCard[];
   readonly deck: HwatuCard[];
   /** 현재 차례 플레이어 인덱스 */

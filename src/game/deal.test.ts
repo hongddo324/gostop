@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createDeck, createStandardDeck } from './cards';
 import { FIELD_SIZE, HAND_SIZE, dealGame, seededRng, shuffle } from './deal';
-import { splitSeats } from './seats';
+import { pickGwangSeller, splitSeats } from './seats';
 
 describe('createDeck', () => {
   const deck = createStandardDeck();
@@ -79,5 +79,26 @@ describe('카드 이미지 에셋', () => {
     const { existsSync } = await import('node:fs');
     const missing = createStandardDeck().filter((c) => !existsSync(`public/assets/cards/${c.id}.webp`));
     expect(missing.map((c) => c.id)).toEqual([]);
+  });
+});
+
+describe('광 팔기 (훈수)', () => {
+  it('광 판 사람 7장: 광 장수 계산, 판 뒤 더미 맨 아래로', () => {
+    const { players, observer } = splitSeats('grandma');
+    for (let seed = 1; seed <= 50; seed++) {
+      const g = dealGame(players, observer, seededRng(seed));
+      expect(g.gwangSale.sellerId).toBe('grandma');
+      expect(g.gwangSale.hand).toHaveLength(7);
+      expect(g.gwangSale.gwangCount).toBe(g.gwangSale.hand.filter((c) => c.type === 'gwang').length);
+      expect(g.deck.slice(-7).map((c) => c.id)).toEqual(g.gwangSale.hand.map((c) => c.id));
+      expect(g.players.map((p) => p.seat.id)).not.toContain('grandma');
+    }
+  });
+
+  it('나도 광 팔 사람으로 뽑힐 수 있고, 뽑히면 AI 3명이 친다', () => {
+    const picked = new Set(Array.from({ length: 200 }, (_, i) => pickGwangSeller(seededRng(i + 1)).id));
+    expect(picked).toEqual(new Set(['me', 'grandma', 'uncle', 'father-in-law']));
+    const { players } = splitSeats('me');
+    expect(players.every((p) => !p.isHuman)).toBe(true);
   });
 });

@@ -12,6 +12,8 @@ interface Props {
   myTurn: boolean;
   score?: number;
   goCount?: number;
+  /** 내가 광 판 사람일 때 받았던 7장 (구경 모드) */
+  soldHand?: HwatuCard[];
   onSelect: (card: HwatuCard) => void;
   onPlay: (card: HwatuCard) => void;
 }
@@ -20,7 +22,8 @@ interface Props {
  * 내 손패 전용 패널 — 게임 장면 아래 별도 공간 (모포를 가리지 않음).
  * 조작: 한 번 탭 = 선택(같은 월 바닥 패 강조), 선택한 패를 한 번 더 탭 또는 '내기' = 내기.
  */
-export function MyHand({ cards, selectedId, myTurn, score, goCount, onSelect, onPlay }: Props) {
+export function MyHand({ cards, selectedId, myTurn, score, goCount, soldHand, onSelect, onPlay }: Props) {
+  if (soldHand) return <SoldPanel hand={soldHand} />;
   const selected = cards.find((c) => c.id === selectedId);
 
   return (
@@ -82,6 +85,33 @@ export function MyHand({ cards, selectedId, myTurn, score, goCount, onSelect, on
           <span className="text-sm text-amber-100/60">상대 차례…</span>
         )}
       </div>
+    </div>
+  );
+}
+
+/** 내가 광을 팔고 구경하는 판 — 받았던 패를 보여주고 광을 강조 */
+function SoldPanel({ hand }: { hand: HwatuCard[] }) {
+  const gwang = hand.filter((c) => c.type === 'gwang').length;
+  return (
+    <div
+      className="absolute inset-x-0 bottom-0 z-40 flex items-center gap-4 border-t-4 border-violet-400 bg-gradient-to-b from-[#4b3a5e] to-[#2a2035] px-5"
+      style={{ height: HAND_PANEL_H }}
+    >
+      <div className="w-[190px] shrink-0 text-amber-50">
+        <div className="text-lg font-black">이번 판은 구경!</div>
+        <div className="text-sm text-amber-300">{gwang > 0 ? `광 ${gwang}장 팔았어요` : '광이 없어서 그냥 구경해요'}</div>
+      </div>
+      <div className="flex flex-1 items-end justify-center gap-2">
+        {hand.map((c) => (
+          <Card
+            key={c.id}
+            card={c}
+            size={{ w: 56, h: 84 }}
+            className={c.type === 'gwang' ? 'ring-4 ring-amber-300' : 'opacity-60'}
+          />
+        ))}
+      </div>
+      <div className="w-[170px] shrink-0 text-right text-sm text-amber-100/70">세 분이 치는 걸 지켜봐요 👀</div>
     </div>
   );
 }

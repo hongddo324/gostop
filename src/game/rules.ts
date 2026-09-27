@@ -9,4 +9,8 @@ export const RULES = {
   piBakMax: 5,
   /** 쪽/따닥/뻑 먹기/싹쓸이 시 상대마다 빼앗는 피 장수 */
   stealPerSpecial: 1,
+  /** 광값: 광 판 사람이 플레이어 1명당 광 1장마다 받는 점수 */
+  gwangPrice: 1,
+  /** 광 팔 사람(=훈수) 후보. 'all' 이면 나도 뽑힐 수 있다 (뽑히면 구경) */
+  gwangSellerCandidates: 'all' as 'all' | 'ai',
 } as const;

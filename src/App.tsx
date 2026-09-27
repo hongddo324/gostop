@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Background } from './components/Background';
 import { Board } from './components/Board';
 import { CardZoom } from './components/CardZoom';
@@ -12,22 +12,17 @@ import { SCENE_SHIFT, STAGE_HEIGHT, STAGE_WIDTH } from './config/stage';
 import { aiChooseCard } from './game/ai';
 import { currentPlayer } from './game/engine';
 import { scoreOf } from './game/scoring';
-import { SEATS, splitSeats } from './game/seats';
+import { SEATS } from './game/seats';
 import type { HwatuCard } from './game/types';
 import { useGameController } from './hooks/useGameController';
 
 const ME = SEATS.find((s) => s.isHuman)!;
 
 export default function App() {
-  const [observerId, setObserverId] = useState('uncle');
-  const { players, observer } = useMemo(() => splitSeats(observerId), [observerId]);
-  const { game, motion, bubbles, deal, reset, humanPlay, humanChoose, humanGoStop } = useGameController(
-    players,
-    observer,
-  );
+  const { game, motion, bubbles, deal, humanPlay, humanChoose, humanGoStop, speak } = useGameController();
+  const observer = game?.observer;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<{ title: string; cards: HwatuCard[] } | null>(null);
-  const [hint, setHint] = useState<string | null>(null);
 
   const current = game && game.phase !== 'end' ? currentPlayer(game) : undefined;
   const myTurn = !!game && game.phase === 'play' && current?.seat.isHuman === true;
@@ -35,22 +30,15 @@ export default function App() {
   const myHand = playerOf(ME.id)?.hand ?? [];
   const selectedCard = myHand.find((c) => c.id === selectedId);
 
-  // 내 차례가 오면 훈수석에서 한 마디 (AI 추천 패)
+  // 내 차례가 오면 훈수석(광 판 사람)이 훈수 한마디 (AI 추천 패)
   useEffect(() => {
-    if (!myTurn || !game) return setHint(null);
+    if (!myTurn || !game || game.observer.isHuman) return;
     const pick = aiChooseCard(game, myHand);
     const matches = game.field.some((c) => c.month === pick.month);
-    setHint(
-      pick.isBonus ? '보너스패부터 내게~' : matches ? `${pick.month}월 내서 먹어봐~` : `${pick.month}월 버려도 되겠네`,
-    );
+    speak(game.observer.id, pick.isBonus ? 'hintBonus' : matches ? 'hint' : 'hintDiscard', { month: pick.month }, undefined, 500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myTurn]);
 
-  const handleObserverChange = (id: string) => {
-    setObserverId(id);
-    reset();
-    setSelectedId(null);
-  };
   const handleDeal = () => {
     deal();
     setSelectedId(null);
@@ -88,7 +76,7 @@ export default function App() {
         {SEATS.map((seat) => {
           const place = CHARACTER_PLACEMENT[seat.position];
           if (!place) return null;
-          const pose = motion[seat.id] ?? (seat.id === observer.id ? 'observe' : 'idle');
+          const pose = motion[seat.id] ?? (seat.id === observer?.id ? 'observe' : 'idle');
           return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} {...place} />;
         })}
 
@@ -97,7 +85,7 @@ export default function App() {
           const tag = NAME_TAG_POS[seat.position];
           if (!tag) return null;
           const p = playerOf(seat.id);
-          const isObserver = seat.id === observer.id;
+          const isObserver = seat.id === observer?.id;
           return (
             <CharacterSeat
               key={seat.id}
@@ -107,7 +95,8 @@ export default function App() {
               handCount={p?.hand.length}
               score={p ? scoreOf(p.captured).total : undefined}
               goCount={p?.goCount}
-              bubble={bubbles[seat.id]?.text ?? (isObserver ? (hint ?? '허허, 잘 보고 내야지~') : undefined)}
+              bubble={bubbles[seat.id]?.text}
+              gwangCount={isObserver ? game?.gwangSale.gwangCount : undefined}
               x={tag.x}
               y={tag.y}
             />
@@ -140,6 +129,7 @@ export default function App() {
         myTurn={myTurn}
         score={game ? scoreOf(playerOf(ME.id)?.captured ?? []).total : undefined}
         goCount={playerOf(ME.id)?.goCount}
+        soldHand={game?.observer.isHuman ? game.gwangSale.hand : undefined}
         onSelect={(c) => setSelectedId((prev) => (prev === c.id ? null : c.id))}
         onPlay={handlePlay}
       />
@@ -148,25 +138,17 @@ export default function App() {
       <div className="absolute left-4 top-3 z-40 rounded-xl bg-black/45 px-3 py-1.5 text-white">
         <div className="text-lg font-black tracking-tight">우리집 고스톱</div>
         <div className="text-[11px] opacity-80">
-          {current ? `${current.seat.name} 차례 · 더미 ${game!.deck.length}장` : '3인 플레이 · 1명 훈수'}
+          {current ? `${current.seat.name} 차례 · 더미 ${game!.deck.length}장` : '3명 플레이 · 광 판 1명 훈수'}
         </div>
       </div>
 
       <div className="absolute right-4 top-3 z-40 flex items-center gap-2">
-        <label className="flex items-center gap-1 rounded-xl bg-black/45 px-2 py-1.5 text-xs font-semibold text-white">
-          훈수
-          <select
-            value={observerId}
-            onChange={(e) => handleObserverChange(e.target.value)}
-            className="rounded bg-white/90 px-1 py-0.5 text-stone-800"
-          >
-            {SEATS.filter((s) => !s.isHuman).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {game && (
+          <div className="rounded-xl bg-black/45 px-3 py-1.5 text-xs font-semibold text-white">
+            광 판 사람 · 훈수: <b className="text-amber-300">{game.observer.name}</b>{' '}
+            {game.gwangSale.gwangCount > 0 ? `(광 ${game.gwangSale.gwangCount}장)` : '(광 없음)'}
+          </div>
+        )}
         <button
           type="button"
           onClick={handleDeal}
@@ -183,6 +165,7 @@ export default function App() {
       {game?.phase === 'end' && game.result && (
         <ResultModal
           result={game.result}
+          gwangSale={game.gwangSale}
           nameOf={(id) => SEATS.find((s) => s.id === id)?.name ?? id}
           winnerScore={game.result.winnerId ? scoreOf(playerOf(game.result.winnerId)!.captured) : undefined}
           onNext={handleDeal}

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ScoreBreakdown } from '../game/scoring';
-import type { GameResult, HwatuCard, PendingChoice, PlayerState } from '../game/types';
+import type { GameResult, GwangSale, HwatuCard, PendingChoice, PlayerState } from '../game/types';
 import { Card } from './Card';
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
@@ -95,11 +95,13 @@ export function GoStopModal({
 /** 판 결과 */
 export function ResultModal({
   result,
+  gwangSale,
   nameOf,
   winnerScore,
   onNext,
 }: {
   result: GameResult;
+  gwangSale: GwangSale;
   nameOf: (seatId: string) => string;
   winnerScore?: ScoreBreakdown;
   onNext: () => void;
@@ -126,6 +128,11 @@ export function ResultModal({
             ))}
           </div>
         </>
+      )}
+      {gwangSale.gwangCount > 0 && (
+        <div className="mt-3 rounded bg-amber-900/40 px-3 py-1 text-center text-sm">
+          광값 · {nameOf(gwangSale.sellerId)} 광 {gwangSale.gwangCount}장 → 한 사람당 <b>{gwangSale.pricePerPlayer}점</b>씩 받음
+        </div>
       )}
       <div className="mt-4 flex justify-center">
         <button
