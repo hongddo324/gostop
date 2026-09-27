@@ -6,9 +6,10 @@
       1 대기 → 2 패 고르기 → 3 들어 올리기 → 4 높이 들기 → 5 내려치기 → 6 바닥에 탁 → 7 돌아오기 → 8 대기
   assets-src/characters_cheer.webp  득점 기쁨 3프레임 (3행 × 3열) — 행: 외할머니 / 이모부님(가운데) / 장인어른(오른쪽)
   assets-src/sad_{seatId}.webp      남이 점수 가져갈 때 아쉬워하는 8프레임 (2행 × 4열, 행 우선)
+  assets-src/leave_{seatId}.webp    광 팔고 자리에서 일어나 나가는 8프레임 (앉음 → 일어섬 → 걸어 나감)
 
 출력:
-  public/assets/characters/{seatId}/{play-1..8,cheer-1..3,sad-1..8}.webp
+  public/assets/characters/{seatId}/{play-1..8,cheer-1..3,sad-1..8,leave-1..8}.webp
   src/config/characterFrames.json   캐릭터별 캔버스 크기와 기준점(대기 프레임의 다리 하단 중앙)
 
 정렬 방식:
@@ -115,6 +116,28 @@ def align_offset(ref, frame) -> tuple[int, int]:
     return int(px + x_lo - ox), int(py + y_lo - oy)
 
 
+def foot_center(frame) -> float:
+    """맨 아래 8% 영역(발)의 가로 중심"""
+    m = frame[:, :, 3] > ALPHA_MIN
+    h = m.shape[0]
+    xs = np.where(m[int(h * 0.92) :].any(axis=0))[0]
+    return (xs.min() + xs.max()) / 2
+
+
+def align_leave(ref, frames) -> list[tuple[int, int]]:
+    """
+    나가기 프레임 정렬: 1프레임(앉은 자세)은 다리 상호상관으로 맞추고,
+    일어서는 2~8프레임은 발바닥을 같은 바닥선에, 발 중심을 1프레임 다리 중심에 맞춘다.
+    """
+    dx1, dy1 = align_offset(ref, frames[0])
+    floor = dy1 + frames[0].shape[0]
+    cx = dx1 + band_center(frames[0])
+    out = [(dx1, dy1)]
+    for f in frames[1:]:
+        out.append((int(round(cx - foot_center(f))), floor - f.shape[0]))
+    return out
+
+
 def main():
     cheer_sheet = extract(SRC / "characters_cheer.webp", 3, 3)
     meta = {}
@@ -129,12 +152,18 @@ def main():
         sad = [resize(f, ks) for f in sad]
         print(f"{seat}: cheer scale {k:.3f}, sad scale {ks:.3f}")
 
+        leave = extract(SRC / f"leave_{seat}.webp", 2, 4)
+        kl = leg_width(ref) / leg_width(leave[0])  # 1프레임(앉은 자세) 기준 크기 보정
+        leave = [resize(f, kl) for f in leave]
+        print(f"{seat}: leave scale {kl:.3f}")
+
         named = (
             [(f"play-{i + 1}", f) for i, f in enumerate(play)]
             + [(f"cheer-{i + 1}", f) for i, f in enumerate(cheer)]
             + [(f"sad-{i + 1}", f) for i, f in enumerate(sad)]
         )
         placed = [(name, f, *align_offset(ref, f)) for name, f in named]
+        placed += [(f"leave-{i + 1}", f, dx, dy) for i, (f, (dx, dy)) in enumerate(zip(leave, align_leave(ref, leave)))]
 
         x0 = min(dx for _, _, dx, _ in placed) - PAD
         y0 = min(dy for _, _, _, dy in placed) - PAD

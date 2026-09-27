@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { playReleaseMs, playTotalMs, SAD_TOTAL_MS, type CharacterPose } from '../components/CharacterSprite';
+import {
+  ENTER_TOTAL_MS,
+  LEAVE_TOTAL_MS,
+  playReleaseMs,
+  playTotalMs,
+  SAD_TOTAL_MS,
+  type CharacterPose,
+} from '../components/CharacterSprite';
+import type { ChatMessage } from '../components/KakaoChat';
 import { line, type LineKey } from '../content/dialogue';
 import { visibleContext } from '../logic/aiContext';
 import { chooseTargetAi, decideGoAi, evaluateAiMove } from '../logic/aiEngine';
@@ -66,6 +74,13 @@ export function useGameController(settings: Settings) {
   const [bubbles, setBubbles] = useState<Record<string, Bubble>>({});
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const bubbleSeq = useRef(0);
+  /** 광 판 사람이 나가서 자리에 없는지 — 이후 그 사람의 말은 훈수 채팅으로 */
+  const [observerGone, setObserverGone] = useState(false);
+  const goneRef = useRef(false);
+  /** 나가는 중(광 팔기 대사 이후 ~ 사라지기 전)에 한 말은 모아 뒀다가 채팅으로 올린다 */
+  const leavingRef = useRef(false);
+  const pendingChat = useRef<string[]>([]);
+  const [chat, setChat] = useState<ChatMessage[]>([]);
   const gameRef = useRef<GameState | null>(null);
   gameRef.current = game;
 
@@ -95,6 +110,18 @@ export function useGameController(settings: Settings) {
     (seatId: string, text: string | undefined, ms?: number) => {
       if (!text) return;
       const seq = ++bubbleSeq.current;
+      // 나간 광 판 사람의 말 → 훈수 모드일 때만 카톡 채팅, 아니면 아무 말도 안 함
+      const isObserver = seatId === gameRef.current?.observer.id;
+      if (isObserver && leavingRef.current && !goneRef.current) {
+        if (cfg.current.helpMode) pendingChat.current.push(text);
+        return;
+      }
+      if (goneRef.current && isObserver) {
+        if (!cfg.current.helpMode) return;
+        const time = new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
+        setChat((c) => [...c.slice(-9), { seq, text, time }]);
+        return;
+      }
       setBubbles((b) => ({ ...b, [seatId]: { seq, text } }));
       later(ms ?? bubbleMs(text), () => setBubbles((b) => (b[seatId]?.seq === seq ? omit(b, seatId) : b)));
     },
@@ -115,14 +142,33 @@ export function useGameController(settings: Settings) {
     clearTimers();
     setMotion({});
     setBubbles({});
+    setChat([]);
+    goneRef.current = false;
+    leavingRef.current = false;
+    pendingChat.current = [];
+    setObserverGone(false);
+    const prevSeller = gameRef.current?.observer;
     const seller = pickGwangSeller();
     const { players, observer } = splitSeats(seller.id);
     const g = dealGame(players, observer);
     setGame(g);
 
     // 광 팔기 한마디 → 선의 인사
+    // 광 판 사람은 일어나 걸어 나가고(이후 자리에서 사라짐), 지난 판에 나갔던 사람은 걸어 들어와 앉는다
+    setPose(seller.id, 'leave', LEAVE_TOTAL_MS);
+    later(LEAVE_TOTAL_MS, () => {
+      goneRef.current = true;
+      setObserverGone(true);
+      // 나가는 동안 하려던 훈수를 채팅으로
+      const queued = pendingChat.current;
+      pendingChat.current = [];
+      queued.forEach((t, i) => later(400 + i * 700, () => say(seller.id, t)));
+    });
+    if (prevSeller && prevSeller.id !== seller.id) setPose(prevSeller.id, 'enter', ENTER_TOTAL_MS);
+
     const { gwangCount } = g.gwangSale;
     speak(seller.id, gwangCount > 0 ? 'sellGwang' : 'sellNone', { n: gwangCount }, gwangCount > 0 ? `광 ${gwangCount}장 팔았어요!` : '광이 없어서 구경할게요');
+    leavingRef.current = true; // 광 팔기 한마디는 자리에서, 그 뒤 말은 채팅으로
     const first = g.players[0]!.seat;
     if (!first.isHuman) speak(first.id, 'greet', {}, undefined, 1200);
     else {
@@ -257,7 +303,8 @@ export function useGameController(settings: Settings) {
     // (피를 뺏긴 사람은 무조건, 나머지는 큰 일일 때)
     if (bigEvent || r.stolen.length > 0) {
       const robbed = new Set(r.stolen.map((x) => x.fromSeatId));
-      [...g.players.map((p) => p.seat), g.observer]
+      g.players
+        .map((p) => p.seat)
         .filter((s) => !s.isHuman && s.id !== r.seatId && (bigEvent || robbed.has(s.id)))
         .forEach((s, i) => later(250 + i * 180, () => setPose(s.id, 'sad', SAD_TOTAL_MS + 200)));
     }
@@ -277,7 +324,7 @@ export function useGameController(settings: Settings) {
     const victim = r.stolen.map((x) => x.fromSeatId).find((id) => id !== ME_ID);
     if (victim && Math.random() < CHANCE.robbed) speak(victim, 'robbed', {}, undefined, 900);
 
-    // 훈수석 구경 한마디 (특수 상황이나 점수 날 때)
+    // 훈수석(나간 광 판 사람) 구경 한마디 — 카톡으로 (특수 상황이나 점수 날 때)
     if ((special || scored) && Math.random() < CHANCE.watch && !g.observer.isHuman) {
       speak(g.observer.id, 'watch', {}, undefined, 1300);
     }
@@ -315,7 +362,7 @@ export function useGameController(settings: Settings) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.observer.id, game?.phase === 'end', speak]);
 
-  return { game, motion, bubbles, deal, reset, humanPlay, humanChoose, humanGoStop, speak, say };
+  return { game, motion, bubbles, chat, observerGone, deal, reset, humanPlay, humanChoose, humanGoStop, speak, say };
 }
 
 const ME_ID = 'me';

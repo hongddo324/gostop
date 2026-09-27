@@ -127,6 +127,16 @@ export const MONEY_POS: Partial<Record<SeatPosition, { x: number; y: number; ali
   right: { x: 982, y: 282, alignRight: true },
 };
 
+/** 광 팔고 나갈 때 걸어가는 가로 거리 (배경 좌표, 음수=왼쪽) — 시트의 걷는 방향과 맞춤 */
+export const EXIT_DX: Record<SeatPosition, number> = { left: -340, top: 420, right: 320, bottom: 0 };
+
+/** 훈수 채팅(카톡) 창 위치 — 광 판 사람이 앉았던 빈자리 (배경 좌표, 좌상단·폭) */
+export const CHAT_POS: Partial<Record<SeatPosition, { x: number; y: number; w: number }>> = {
+  left: { x: 14, y: 300, w: 300 },
+  top: { x: 470, y: 150, w: 290 }, // 이모부님 지폐(x 772~) 와 겹치지 않게
+  right: { x: 966, y: 300, w: 300 },
+};
+
 /** 패를 '탁' 내려놓는 손 위치 (배경 좌표) — 카드가 여기서 모포로 날아간다 */
 export const PLAY_ORIGIN: Record<SeatPosition, { x: number; y: number }> = {
   left: { x: 250, y: 600 },

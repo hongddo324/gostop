@@ -9,9 +9,9 @@ export interface Settings {
   difficulty: Difficulty;
   /** 게임 배속 (1배속 = 기본, 가족끼리 치듯 느긋하게) */
   speed: Speed;
-  /** 도움 모드: 내 패널에 '훈수 듣기' 버튼 + 상세 설명 */
+  /** 훈수 모드: 광 판 사람이 빈자리에서 카톡으로 훈수 + '훈수 듣기' 버튼·상세 설명. 끄면 훈수는 말이 없다 */
   helpMode: boolean;
-  /** 내 차례마다 훈수석이 자동으로 한마디 */
+  /** (훈수 모드일 때) 내 차례마다 자동으로 한마디 */
   autoHint: boolean;
 }
 

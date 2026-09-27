@@ -67,17 +67,18 @@ export function SettingsModal({ settings, onChange, onClose, onResetMoney }: Pro
           </div>
         </Section>
 
-        <Section title="도움 모드">
+        <Section title="훈수 모드">
           <Toggle
-            label="훈수 듣기 버튼 + 상세 설명"
-            desc="내 차례에 버튼을 누르면 추천 패와 이유를 자세히 알려줘요"
+            label="훈수 모드"
+            desc="광 판 사람이 빈자리에서 카톡으로 훈수 + '훈수 듣기' 버튼과 상세 설명. 끄면 훈수는 아무 말도 안 해요"
             value={settings.helpMode}
             onChange={(v) => onChange({ helpMode: v })}
           />
           <Toggle
-            label="자동 훈수"
-            desc="내 차례마다 광 판 사람이 한마디씩 훈수를 둬요"
-            value={settings.autoHint}
+            label="내 차례마다 자동 훈수"
+            desc="내 차례가 오면 묻지 않아도 카톡으로 한마디씩 훈수를 둬요"
+            value={settings.helpMode && settings.autoHint}
+            disabled={!settings.helpMode}
             onChange={(v) => onChange({ autoHint: v })}
           />
         </Section>
@@ -124,9 +125,26 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Toggle({ label, desc, value, onChange }: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  desc,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  desc: string;
+  value: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
-    <button type="button" onClick={() => onChange(!value)} className="mb-1.5 flex w-full items-center gap-3 rounded-xl bg-black/20 px-3 py-2 text-left">
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onChange(!value)}
+      className="mb-1.5 flex w-full items-center gap-3 rounded-xl bg-black/20 px-3 py-2 text-left disabled:opacity-40"
+    >
       <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${value ? 'bg-emerald-500' : 'bg-stone-500'}`}>
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${value ? 'left-[22px]' : 'left-0.5'}`} />
       </span>

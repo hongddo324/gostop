@@ -6,11 +6,12 @@ import { CharacterSeat } from './components/CharacterSeat';
 import { CharacterSprite } from './components/CharacterSprite';
 import { ChoiceModal, GoStopModal, ResultModal } from './components/Modals';
 import { HintPanel } from './components/HintPanel';
+import { KakaoChat } from './components/KakaoChat';
 import { MoneyStack } from './components/MoneyStack';
 import { MyHand } from './components/MyHand';
 import { SettingsModal } from './components/SettingsModal';
 import { StageContainer } from './components/StageContainer';
-import { CHARACTER_PLACEMENT, MONEY_POS, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
+import { CHARACTER_PLACEMENT, CHAT_POS, EXIT_DX, MONEY_POS, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
 import { SCENE_SHIFT, STAGE_HEIGHT, STAGE_WIDTH } from './config/stage';
 import { renderHintVoice } from './content/hintVoice';
 import { visibleContext } from './logic/aiContext';
@@ -29,7 +30,8 @@ const ME = SEATS.find((s) => s.isHuman)!;
 export default function App() {
   const { settings, update: updateSettings } = useSettings();
   const timing = scaledTiming(settings.speed);
-  const { game, motion, bubbles, deal, humanPlay, humanChoose, humanGoStop, say } = useGameController(settings);
+  const { game, motion, bubbles, chat, observerGone, deal, humanPlay, humanChoose, humanGoStop, say } =
+    useGameController(settings);
   const observer = game?.observer;
   const [showSettings, setShowSettings] = useState(false);
   const [hint, setHint] = useState<HintExplanation | null>(null);
@@ -54,7 +56,7 @@ export default function App() {
   // 내 차례가 오면 (자동 훈수 설정 시) 광 판 사람이 자기 말투로 훈수 한마디
   useEffect(() => {
     setHint(null);
-    if (!myTurn || !game || !settings.autoHint) return;
+    if (!myTurn || !game || !settings.helpMode || !settings.autoHint) return;
     const h = computeHint();
     if (h) setTimeout(() => say(game.observer.id, renderHintVoice(h, game.observer.id)), 500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -118,8 +120,9 @@ export default function App() {
         {SEATS.map((seat) => {
           const place = CHARACTER_PLACEMENT[seat.position];
           if (!place) return null;
-          const pose = motion[seat.id] ?? (seat.id === observer?.id ? 'observe' : 'idle');
-          return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} frameMs={timing.playFrame} {...place} />;
+          // 광 판 사람은 나가기 모션 후 자리에서 사라진다 (gone)
+          const pose = motion[seat.id] ?? (seat.id === observer?.id ? 'gone' : 'idle');
+          return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} frameMs={timing.playFrame} exitDx={EXIT_DX[seat.position]} {...place} />;
         })}
 
         {/* 좌석별 돈 (이름표 옆 지폐 묶음) */}
@@ -144,6 +147,7 @@ export default function App() {
           if (!tag) return null;
           const p = playerOf(seat.id);
           const isObserver = seat.id === observer?.id;
+          if (isObserver && observerGone) return null; // 나간 자리는 이름표 대신 훈수 채팅
           return (
             <CharacterSeat
               key={seat.id}
@@ -160,6 +164,11 @@ export default function App() {
             />
           );
         })}
+
+        {/* 광 판 사람의 빈자리 — 카톡 스타일 훈수 채팅 (훈수 모드일 때만) */}
+        {observer && observerGone && settings.helpMode && CHAT_POS[observer.position] && (
+          <KakaoChat seat={observer} messages={chat} {...CHAT_POS[observer.position]!} />
+        )}
 
         {/* 내 말풍선 (쪽!/고! 등) — 화면 아래 가운데 */}
         {bubbles[ME.id] && (
