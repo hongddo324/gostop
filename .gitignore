@@ -8,3 +8,5 @@ android/app/build
 
 # 빌드된 APK (배포용 복사본)
 *.apk
+# 배포용 APK는 release/ 폴더만 저장소에 올린다
+!release/*.apk
