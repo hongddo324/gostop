@@ -8,10 +8,10 @@ import type { CardType, SeatPosition } from '../game/types';
 
 /** 모포 사다리꼴 꼭짓점 (좌상, 우상, 우하, 좌하) */
 export const MAT_QUAD = [
-  { x: 289, y: 410 },
-  { x: 946, y: 410 },
-  { x: 1057, y: 642 },
-  { x: 113, y: 642 },
+  { x: 292, y: 408 },
+  { x: 947, y: 408 },
+  { x: 1056, y: 641 },
+  { x: 113, y: 641 },
 ] as const;
 
 /**
@@ -24,7 +24,7 @@ export const MAT_QUAD = [
  * 평면 크기가 작을수록 같은 카드가 화면에서 크게 보인다(단위당 픽셀↑).
  * 실제 모포 비율(≈3:2)이면 카드가 너무 납작해져 가독성 쪽으로 약 2.2:1 로 잡았다.
  *
- * 배경 인물에 가려지는 모포 영역 (역투영으로 측정):
+ * 캐릭터(CHARACTER_PLACEMENT)에 가려지는 모포 영역 (역투영으로 측정):
  *  - 외할머니 무릎: x < 86 (y 0~210)
  *  - 오른쪽 인물 무릎: x > 685 (y 90~240)
  *  - 가운데 인물 발: x 266~459, y < 42
@@ -88,42 +88,23 @@ export const CAPTURE_LAYOUT: Record<SeatPosition, CaptureLayout> = {
   },
 };
 
-/** AI 손패(부채꼴) 3D 연출 파라미터 */
-export interface HandPose {
-  /** 부채 회전축(손 위치) — 인물 무릎/손 근처 */
-  x: number;
-  y: number;
-  /** 인물이 바라보는 방향으로 카드면을 돌린다 (deg) */
-  rotateY: number;
-  /** 카드 윗부분을 인물 쪽으로 눕힌다 (deg) */
-  rotateX: number;
-  /** 손목 기울기 (deg) */
-  rotateZ: number;
-  /** 부채 펼침 각도 합계 (deg) */
-  spread: number;
-}
-
 /**
- * 좌석별 배치. 캐릭터는 배경에 그려져 있으므로 이름표와 AI 손패만 얹는다.
- *  - nameTag: 이름표 중심 x, 상단 y (인물 머리 위)
- *  - hand: AI 손패 — 인물이 손에 쥔 부채꼴(뒷면), 배경 인물 시선/자세에 맞춘 원근
+ * 캐릭터 스프라이트 배치 (배경과 분리된 레이어).
+ *  - x, y: 앉은 자리 기준점(다리 하단 중앙)의 스테이지 좌표
+ *  - height: 대기 프레임 기준 표시 키(px). 원근상 앞쪽 좌석일수록 크게.
+ * 위치는 처음 받은 합성 배경(인물 포함)과 동일하게 맞춰, 모포 가림 영역 계산이 그대로 유효하다.
  */
-export const SEAT_LAYOUT: Record<SeatPosition, { nameTag?: { x: number; y: number }; hand?: HandPose }> = {
-  // 외할머니: 화면 왼쪽, 오른쪽(모포)을 바라봄
-  left: {
-    nameTag: { x: 160, y: 168 },
-    hand: { x: 250, y: 468, rotateY: 50, rotateX: 10, rotateZ: 12, spread: 56 },
-  },
-  // 가운데 인물: 정면(나)을 바라봄 → 카드면이 본인 쪽이라 우리는 뒷면을 정면으로 봄
-  top: {
-    nameTag: { x: 616, y: 104 },
-    hand: { x: 616, y: 398, rotateY: 0, rotateX: 18, rotateZ: 0, spread: 60 },
-  },
-  // 화면 오른쪽 인물: 왼쪽(모포)을 바라봄
-  right: {
-    nameTag: { x: 1133, y: 178 },
-    hand: { x: 1010, y: 486, rotateY: -50, rotateX: 10, rotateZ: -12, spread: 56 },
-  },
-  // 나: 1인칭 — 손패는 하단 전용 패널(MyHand)
-  bottom: {},
+export const CHARACTER_PLACEMENT: Partial<Record<SeatPosition, { x: number; y: number; height: number }>> = {
+  left: { x: 178, y: 545, height: 332 },
+  top: { x: 628, y: 429, height: 280 },
+  right: { x: 1116, y: 576, height: 351 },
+};
+
+/** 좌석 이름표 위치 (중심 x, 상단 y — 인물 머리 위) */
+export const NAME_TAG_POS: Record<SeatPosition, { x: number; y: number } | undefined> = {
+  left: { x: 160, y: 168 },
+  top: { x: 628, y: 104 },
+  right: { x: 1133, y: 178 },
+  // 나: 1인칭 — 손패는 우하단 전용 패널(MyHand)
+  bottom: undefined,
 };

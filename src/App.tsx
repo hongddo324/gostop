@@ -1,34 +1,78 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Background } from './components/Background';
 import { Board } from './components/Board';
 import { CardZoom } from './components/CardZoom';
 import { CharacterSeat } from './components/CharacterSeat';
+import { CharacterSprite, type CharacterPose } from './components/CharacterSprite';
 import { MyHand } from './components/MyHand';
-import { OpponentHand } from './components/OpponentHand';
 import { StageContainer } from './components/StageContainer';
+import { CHARACTER_PLACEMENT, NAME_TAG_POS } from './config/layout';
 import { dealGame } from './game/deal';
 import { demoCapture } from './game/demo';
 import { SEATS, splitSeats } from './game/seats';
 import type { GameState, HwatuCard } from './game/types';
-import { SEAT_LAYOUT } from './config/layout';
+
+/** 모션 연출 시간 (ms) */
+const PLAY_MS = 700;
+const CHEER_MS = 1800;
 
 export default function App() {
   const [observerId, setObserverId] = useState('uncle');
   const [game, setGame] = useState<GameState | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<{ title: string; cards: HwatuCard[] } | null>(null);
+  /** 좌석별 일시 모션 (없으면 기본: 플레이어 idle / 훈수 observe) */
+  const [motion, setMotion] = useState<Record<string, CharacterPose>>({});
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const { players, observer } = useMemo(() => splitSeats(observerId), [observerId]);
 
+  const clearTimers = () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    setMotion({});
+  };
+  useEffect(() => clearTimers, []);
+
+  const later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms));
+  const setPose = (seatId: string, pose: CharacterPose | null) =>
+    setMotion((m) => {
+      const next = { ...m };
+      if (pose) next[seatId] = pose;
+      else delete next[seatId];
+      return next;
+    });
+
   const handleDeal = () => {
+    clearTimers();
     setGame(dealGame(players, observer));
     setSelectedId(null);
   };
 
   const handleObserverChange = (id: string) => {
+    clearTimers();
     setObserverId(id);
     setGame(null); // 좌석 구성이 바뀌면 판을 초기화
     setSelectedId(null);
+  };
+
+  /** [개발용] AI 가 차례로 패를 내고(play) → 득점 → 좋아하는(cheer) 연출 */
+  const handleDemoTurns = () => {
+    if (!game) return;
+    clearTimers();
+    const ais = game.players.filter((p) => !p.seat.isHuman);
+    const step = PLAY_MS + CHEER_MS;
+    ais.forEach((p, i) => {
+      const t = i * step;
+      later(t, () => setPose(p.seat.id, 'play'));
+      later(t + PLAY_MS, () => {
+        setGame((g) => g && demoCapture(g, 3, p.seat.id));
+        setPose(p.seat.id, 'cheer');
+      });
+      later(t + step, () => setPose(p.seat.id, null));
+    });
+    // 내 득점 패도 함께 채워 배치 확인
+    later(ais.length * step, () => setGame((g) => g && demoCapture(g, 3, SEATS.find((s) => s.isHuman)!.id)));
   };
 
   const handOf = (seatId: string) => game?.players.find((p) => p.seat.id === seatId)?.hand ?? [];
@@ -40,36 +84,38 @@ export default function App() {
     <StageContainer>
       <Background />
 
-      {/* 좌석 이름표 + AI 손패 (캐릭터는 배경에 포함) */}
-      {SEATS.map((seat) => {
-        const layout = SEAT_LAYOUT[seat.position];
-        const isObserver = seat.id === observer.id;
-        const hand = handOf(seat.id);
-        return (
-          <div key={seat.id}>
-            {!seat.isHuman && !isObserver && layout.hand && (
-              <OpponentHand cards={hand} pose={layout.hand} />
-            )}
-            {layout.nameTag && (
-              <CharacterSeat
-                seat={seat}
-                isObserver={isObserver}
-                handCount={game ? hand.length : undefined}
-                x={layout.nameTag.x}
-                y={layout.nameTag.y}
-              />
-            )}
-          </div>
-        );
-      })}
-
+      {/* 모포 위 카드 (캐릭터보다 아래 레이어 — 무릎/팔이 카드를 가리도록) */}
       <Board
         field={game?.field ?? []}
         deckCount={game?.deck.length ?? 0}
         captures={game?.players.map((p) => ({ position: p.seat.position, name: p.seat.name, cards: p.captured })) ?? []}
-        onInspect={(title, cards) => setZoom({ title, cards })}
         highlightMonth={selectedCard?.month}
+        onInspect={(title, cards) => setZoom({ title, cards })}
       />
+
+      {/* 캐릭터 (배경과 분리된 스프라이트) */}
+      {SEATS.map((seat) => {
+        const place = CHARACTER_PLACEMENT[seat.position];
+        if (!place) return null;
+        const pose = motion[seat.id] ?? (seat.id === observer.id ? 'observe' : 'idle');
+        return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} {...place} />;
+      })}
+
+      {/* 좌석 이름표 */}
+      {SEATS.map((seat) => {
+        const tag = NAME_TAG_POS[seat.position];
+        if (!tag) return null;
+        return (
+          <CharacterSeat
+            key={seat.id}
+            seat={seat}
+            isObserver={seat.id === observer.id}
+            handCount={game ? handOf(seat.id).length : undefined}
+            x={tag.x}
+            y={tag.y}
+          />
+        );
+      })}
 
       {!game && (
         <div className="absolute left-[340px] top-[495px] w-[560px] text-center">
@@ -109,12 +155,12 @@ export default function App() {
         {game && (
           <button
             type="button"
-            onClick={() => setGame((g) => g && demoCapture(g, 3))}
+            onClick={handleDemoTurns}
             disabled={game.deck.length === 0}
             className="rounded-xl bg-black/45 px-3 py-2 text-xs font-bold text-white disabled:opacity-40"
-            title="개발용: 더미에서 임의로 카드를 옮겨 득점 패 배치를 확인"
+            title="개발용: AI가 차례로 패를 내고 득점해 좋아하는 모션 확인"
           >
-            득점 예시(테스트)
+            모션 예시(테스트)
           </button>
         )}
         <button
