@@ -1,95 +1,78 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Background } from './components/Background';
 import { Board } from './components/Board';
 import { CardZoom } from './components/CardZoom';
 import { CharacterSeat } from './components/CharacterSeat';
-import { CharacterSprite, type CharacterPose } from './components/CharacterSprite';
+import { CharacterSprite } from './components/CharacterSprite';
+import { ChoiceModal, GoStopModal, ResultModal } from './components/Modals';
 import { MyHand } from './components/MyHand';
 import { StageContainer } from './components/StageContainer';
-import { CHARACTER_PLACEMENT, NAME_TAG_POS } from './config/layout';
-import { dealGame } from './game/deal';
-import { demoCapture } from './game/demo';
+import { CHARACTER_PLACEMENT, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
+import { aiChooseCard } from './game/ai';
+import { currentPlayer } from './game/engine';
+import { scoreOf } from './game/scoring';
 import { SEATS, splitSeats } from './game/seats';
-import type { GameState, HwatuCard } from './game/types';
+import type { HwatuCard } from './game/types';
+import { useGameController } from './hooks/useGameController';
 
-/** 모션 연출 시간 (ms) */
-const PLAY_MS = 700;
-const CHEER_MS = 1800;
+const ME = SEATS.find((s) => s.isHuman)!;
 
 export default function App() {
   const [observerId, setObserverId] = useState('uncle');
-  const [game, setGame] = useState<GameState | null>(null);
+  const { players, observer } = useMemo(() => splitSeats(observerId), [observerId]);
+  const { game, motion, bubbles, deal, reset, humanPlay, humanChoose, humanGoStop } = useGameController(
+    players,
+    observer,
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<{ title: string; cards: HwatuCard[] } | null>(null);
-  /** 좌석별 일시 모션 (없으면 기본: 플레이어 idle / 훈수 observe) */
-  const [motion, setMotion] = useState<Record<string, CharacterPose>>({});
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [hint, setHint] = useState<string | null>(null);
 
-  const { players, observer } = useMemo(() => splitSeats(observerId), [observerId]);
+  const current = game && game.phase !== 'end' ? currentPlayer(game) : undefined;
+  const myTurn = !!game && game.phase === 'play' && current?.seat.isHuman === true;
+  const playerOf = (seatId: string) => game?.players.find((p) => p.seat.id === seatId);
+  const myHand = playerOf(ME.id)?.hand ?? [];
+  const selectedCard = myHand.find((c) => c.id === selectedId);
 
-  const clearTimers = () => {
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
-    setMotion({});
-  };
-  useEffect(() => clearTimers, []);
-
-  const later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms));
-  const setPose = (seatId: string, pose: CharacterPose | null) =>
-    setMotion((m) => {
-      const next = { ...m };
-      if (pose) next[seatId] = pose;
-      else delete next[seatId];
-      return next;
-    });
-
-  const handleDeal = () => {
-    clearTimers();
-    setGame(dealGame(players, observer));
-    setSelectedId(null);
-  };
+  // 내 차례가 오면 훈수석에서 한 마디 (AI 추천 패)
+  useEffect(() => {
+    if (!myTurn || !game) return setHint(null);
+    const pick = aiChooseCard(game, myHand);
+    const matches = game.field.some((c) => c.month === pick.month);
+    setHint(matches ? `${pick.month}월 내서 먹어봐~` : `${pick.month}월 버려도 되겠네`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myTurn]);
 
   const handleObserverChange = (id: string) => {
-    clearTimers();
     setObserverId(id);
-    setGame(null); // 좌석 구성이 바뀌면 판을 초기화
+    reset();
+    setSelectedId(null);
+  };
+  const handleDeal = () => {
+    deal();
+    setSelectedId(null);
+  };
+  const handlePlay = (c: HwatuCard) => {
+    humanPlay(c.id);
     setSelectedId(null);
   };
 
-  /** [개발용] AI 가 차례로 패를 내고(play) → 득점 → 좋아하는(cheer) 연출 */
-  const handleDemoTurns = () => {
-    if (!game) return;
-    clearTimers();
-    const ais = game.players.filter((p) => !p.seat.isHuman);
-    const step = PLAY_MS + CHEER_MS;
-    ais.forEach((p, i) => {
-      const t = i * step;
-      later(t, () => setPose(p.seat.id, 'play'));
-      later(t + PLAY_MS, () => {
-        setGame((g) => g && demoCapture(g, 3, p.seat.id));
-        setPose(p.seat.id, 'cheer');
-      });
-      later(t + step, () => setPose(p.seat.id, null));
-    });
-    // 내 득점 패도 함께 채워 배치 확인
-    later(ais.length * step, () => setGame((g) => g && demoCapture(g, 3, SEATS.find((s) => s.isHuman)!.id)));
-  };
-
-  const handOf = (seatId: string) => game?.players.find((p) => p.seat.id === seatId)?.hand ?? [];
-  const me = SEATS.find((s) => s.isHuman)!;
-  const myHand = handOf(me.id);
-  const selectedCard = myHand.find((c) => c.id === selectedId);
+  const humanPending = game?.phase === 'choose' && current?.seat.isHuman ? game.pending : undefined;
+  const humanGoStopTurn = game?.phase === 'goStop' && current?.seat.isHuman ? current : undefined;
+  // 방금 낸 패가 손에서 날아오는 출발점
+  const enterFrom = current ? PLAY_ORIGIN[current.seat.position] : undefined;
 
   return (
     <StageContainer>
       <Background />
 
-      {/* 모포 위 카드 (캐릭터보다 아래 레이어 — 무릎/팔이 카드를 가리도록) */}
+      {/* 모포 위 카드 (캐릭터보다 아래 레이어 — 팔/무릎이 카드를 가리도록) */}
       <Board
         field={game?.field ?? []}
-        deckCount={game?.deck.length ?? 0}
+        deck={game?.deck ?? []}
         captures={game?.players.map((p) => ({ position: p.seat.position, name: p.seat.name, cards: p.captured })) ?? []}
-        highlightMonth={selectedCard?.month}
+        highlightMonth={myTurn ? selectedCard?.month : undefined}
+        enterFrom={enterFrom}
         onInspect={(title, cards) => setZoom({ title, cards })}
       />
 
@@ -101,21 +84,37 @@ export default function App() {
         return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} {...place} />;
       })}
 
-      {/* 좌석 이름표 */}
+      {/* 좌석 이름표 + 말풍선 */}
       {SEATS.map((seat) => {
         const tag = NAME_TAG_POS[seat.position];
         if (!tag) return null;
+        const p = playerOf(seat.id);
+        const isObserver = seat.id === observer.id;
         return (
           <CharacterSeat
             key={seat.id}
             seat={seat}
-            isObserver={seat.id === observer.id}
-            handCount={game ? handOf(seat.id).length : undefined}
+            isObserver={isObserver}
+            isTurn={current?.seat.id === seat.id}
+            handCount={p?.hand.length}
+            score={p ? scoreOf(p.captured).total : undefined}
+            goCount={p?.goCount}
+            bubble={bubbles[seat.id]?.text ?? (isObserver ? (hint ?? '허허, 잘 보고 내야지~') : undefined)}
             x={tag.x}
             y={tag.y}
           />
         );
       })}
+
+      {/* 내 말풍선 (쪽!/고! 등) — 화면 아래 가운데 */}
+      {bubbles[ME.id] && (
+        <div
+          key={bubbles[ME.id]!.seq}
+          className="pointer-events-none absolute left-[430px] top-[500px] z-40 animate-[pop_.25s_ease-out] rounded-2xl bg-white px-5 py-2 text-3xl font-black text-rose-600 shadow-xl"
+        >
+          {bubbles[ME.id]!.text}
+        </div>
+      )}
 
       {!game && (
         <div className="absolute left-[340px] top-[495px] w-[560px] text-center">
@@ -128,16 +127,21 @@ export default function App() {
       <MyHand
         cards={myHand}
         selectedId={selectedId}
+        myTurn={myTurn}
+        score={game ? scoreOf(playerOf(ME.id)?.captured ?? []).total : undefined}
         onSelect={(c) => setSelectedId((prev) => (prev === c.id ? null : c.id))}
+        onPlay={handlePlay}
       />
 
       {/* HUD */}
-      <div className="absolute left-4 top-3 rounded-xl bg-black/45 px-3 py-1.5 text-white">
+      <div className="absolute left-4 top-3 z-40 rounded-xl bg-black/45 px-3 py-1.5 text-white">
         <div className="text-lg font-black tracking-tight">우리집 고스톱</div>
-        <div className="text-[11px] opacity-80">3인 플레이 · 1명 훈수</div>
+        <div className="text-[11px] opacity-80">
+          {current ? `${current.seat.name} 차례 · 더미 ${game!.deck.length}장` : '3인 플레이 · 1명 훈수'}
+        </div>
       </div>
 
-      <div className="absolute right-4 top-3 flex items-center gap-2">
+      <div className="absolute right-4 top-3 z-40 flex items-center gap-2">
         <label className="flex items-center gap-1 rounded-xl bg-black/45 px-2 py-1.5 text-xs font-semibold text-white">
           훈수
           <select
@@ -152,26 +156,27 @@ export default function App() {
             ))}
           </select>
         </label>
-        {game && (
-          <button
-            type="button"
-            onClick={handleDemoTurns}
-            disabled={game.deck.length === 0}
-            className="rounded-xl bg-black/45 px-3 py-2 text-xs font-bold text-white disabled:opacity-40"
-            title="개발용: AI가 차례로 패를 내고 득점해 좋아하는 모션 확인"
-          >
-            모션 예시(테스트)
-          </button>
-        )}
         <button
           type="button"
           onClick={handleDeal}
           className="rounded-xl bg-amber-500 px-5 py-2 text-base font-black text-white shadow-[0_4px_0_#b45309] active:translate-y-1 active:shadow-none"
         >
-          {game ? '다시 돌리기' : '패 돌리기'}
+          {game ? '새 판' : '패 돌리기'}
         </button>
       </div>
 
+      {humanPending && <ChoiceModal pending={humanPending} onChoose={(c) => humanChoose(c.id)} />}
+      {humanGoStopTurn && (
+        <GoStopModal player={humanGoStopTurn} score={scoreOf(humanGoStopTurn.captured)} onDecide={humanGoStop} />
+      )}
+      {game?.phase === 'end' && game.result && (
+        <ResultModal
+          result={game.result}
+          nameOf={(id) => SEATS.find((s) => s.id === id)?.name ?? id}
+          winnerScore={game.result.winnerId ? scoreOf(playerOf(game.result.winnerId)!.captured) : undefined}
+          onNext={handleDeal}
+        />
+      )}
       {zoom && <CardZoom title={zoom.title} cards={zoom.cards} onClose={() => setZoom(null)} />}
     </StageContainer>
   );

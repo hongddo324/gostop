@@ -51,7 +51,7 @@ export function Card({
     : highlighted
       ? 'ring-4 ring-amber-300 animate-pulse'
       : '';
-  const base = `relative shrink-0 rounded-[5px] shadow-[0_2px_4px_rgba(0,0,0,0.45)] transition-transform ${ring} ${className}`;
+  const base = `relative shrink-0 rounded-[5px] shadow-[0_2px_4px_rgba(0,0,0,0.45)] transition-[transform,width,height] duration-300 ${ring} ${className}`;
 
   if (faceDown || !card) {
     return <CardBack style={style} className={base} />;

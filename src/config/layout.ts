@@ -24,29 +24,28 @@ export const MAT_QUAD = [
  * 평면 크기가 작을수록 같은 카드가 화면에서 크게 보인다(단위당 픽셀↑).
  * 실제 모포 비율(≈3:2)이면 카드가 너무 납작해져 가독성 쪽으로 약 2.2:1 로 잡았다.
  *
- * 캐릭터(CHARACTER_PLACEMENT)에 가려지는 모포 영역 (역투영으로 측정):
- *  - 외할머니 무릎: x < 86 (y 0~210)
- *  - 오른쪽 인물 무릎: x > 685 (y 90~240)
- *  - 가운데 인물 발: x 266~459, y < 42
+ * 캐릭터는 모포 가장자리를 최소한으로 가리도록 바깥쪽에 배치했다(CHARACTER_PLACEMENT).
+ * 우하단은 내 패 트레이가 덮으므로(평면 x > 440, y > 250) 비워 둔다.
  */
 export const MAT_W = 700;
 export const MAT_H = 320;
 
 /** 모포 위 카드 크기 (평면 좌표) */
 export const MAT_CARD = { w: 56, h: 84 } as const;
-export const PILE_CARD = { w: 30, h: 45 } as const;
+/** 득점 패 카드 크기 — 캐릭터 앞 패가 잘 보이도록 바닥 패의 약 70% */
+export const PILE_CARD = { w: 40, h: 60 } as const;
 
-/** 더미 — 보이는 모포(x 86~685)의 중앙 */
-const CENTER_X = 386;
-const CENTER_Y = 148;
+/** 더미 — 모포 중앙 */
+const CENTER_X = 350;
+const CENTER_Y = 158;
 export const DECK_POS = { x: CENTER_X - MAT_CARD.w / 2, y: CENTER_Y - MAT_CARD.h / 2 };
 
 /**
  * 바닥 패 12칸 (카드 중심 좌표). 더미 양옆 3열 × 2행.
- * 배열 순서 = 채워지는 순서. 더미에 가까운 칸부터 바깥쪽으로 채운다.
+ * 배열 순서 = 새 월이 놓이는 순서. 더미에 가까운 칸부터 바깥쪽으로 채운다.
  */
-const COL = [202, 262, 322, 450, 510, 570];
-const ROW = [100, 196];
+const COL = [152, 216, 280, 420, 484, 548];
+const ROW = [110, 206];
 export const FIELD_SLOTS: readonly { x: number; y: number }[] = [
   [2, 0], [3, 0], [2, 1], [3, 1],
   [1, 0], [4, 0], [1, 1], [4, 1],
@@ -60,7 +59,7 @@ export const FIELD_SLOTS: readonly { x: number; y: number }[] = [
 export type PileRect = { x: number; y: number; w: number };
 export type CaptureLayout = Record<CardType, PileRect>;
 
-const SIDE_ROWS = [52, 100, 148, 196];
+const SIDE_ROWS = [2, 64, 126, 188];
 const sideZone = (x: number, w: number): CaptureLayout => ({
   gwang: { x, y: SIDE_ROWS[0]!, w },
   yeol: { x, y: SIDE_ROWS[1]!, w },
@@ -69,42 +68,49 @@ const sideZone = (x: number, w: number): CaptureLayout => ({
 });
 
 export const CAPTURE_LAYOUT: Record<SeatPosition, CaptureLayout> = {
-  // 먼 쪽 가장자리 — 가운데 인물 발(x 266~459)을 피해 좌/우로 나눈다
+  // 먼 쪽 가장자리 한 줄 (좌우 가장자리 영역 사이)
   top: {
-    gwang: { x: 92, y: 2, w: 66 },
-    yeol: { x: 164, y: 2, w: 96 },
-    tti: { x: 464, y: 2, w: 90 },
-    pi: { x: 560, y: 2, w: 122 },
+    gwang: { x: 106, y: 2, w: 92 },
+    yeol: { x: 206, y: 2, w: 110 },
+    tti: { x: 324, y: 2, w: 110 },
+    pi: { x: 442, y: 2, w: 152 },
   },
-  // 왼쪽/오른쪽 가장자리 세로 4줄 (무릎에 가려지는 영역은 피함)
-  left: sideZone(88, 84),
-  right: sideZone(600, 84),
-  // 가까운 쪽 가장자리 — 오른쪽 아래는 내 패 트레이 자리
+  // 왼쪽/오른쪽 가장자리 세로 4줄
+  left: sideZone(4, 96),
+  right: sideZone(600, 96),
+  // 가까운 쪽 가장자리 — 우하단(트레이 자리) 제외
   bottom: {
-    gwang: { x: 90, y: 256, w: 56 },
-    yeol: { x: 150, y: 256, w: 76 },
-    tti: { x: 230, y: 256, w: 76 },
-    pi: { x: 310, y: 256, w: 124 },
+    gwang: { x: 4, y: 258, w: 82 },
+    yeol: { x: 94, y: 258, w: 100 },
+    tti: { x: 202, y: 258, w: 100 },
+    pi: { x: 310, y: 258, w: 132 },
   },
 };
 
 /**
  * 캐릭터 스프라이트 배치 (배경과 분리된 레이어).
  *  - x, y: 앉은 자리 기준점(다리 하단 중앙)의 스테이지 좌표
- *  - height: 대기 프레임 기준 표시 키(px). 원근상 앞쪽 좌석일수록 크게.
- * 위치는 처음 받은 합성 배경(인물 포함)과 동일하게 맞춰, 모포 가림 영역 계산이 그대로 유효하다.
+ *  - height: 대기 프레임 기준 표시 키(px). 원근상 먼 좌석(가운데)일수록 작게.
  */
 export const CHARACTER_PLACEMENT: Partial<Record<SeatPosition, { x: number; y: number; height: number }>> = {
-  left: { x: 178, y: 545, height: 332 },
-  top: { x: 628, y: 429, height: 280 },
-  right: { x: 1116, y: 576, height: 351 },
+  left: { x: 128, y: 548, height: 322 },
+  top: { x: 620, y: 408, height: 266 },
+  right: { x: 1142, y: 578, height: 346 },
 };
 
 /** 좌석 이름표 위치 (중심 x, 상단 y — 인물 머리 위) */
 export const NAME_TAG_POS: Record<SeatPosition, { x: number; y: number } | undefined> = {
-  left: { x: 160, y: 168 },
-  top: { x: 628, y: 104 },
-  right: { x: 1133, y: 178 },
+  left: { x: 150, y: 196 },
+  top: { x: 620, y: 110 },
+  right: { x: 1090, y: 200 },
   // 나: 1인칭 — 손패는 우하단 전용 패널(MyHand)
   bottom: undefined,
+};
+
+/** 패를 낼 때 카드가 출발하는 위치 (스테이지 좌표 — 캐릭터가 팔을 뻗은 손끝 / 내 트레이) */
+export const PLAY_ORIGIN: Record<SeatPosition, { x: number; y: number }> = {
+  left: { x: 300, y: 470 },
+  top: { x: 590, y: 360 },
+  right: { x: 990, y: 480 },
+  bottom: { x: 990, y: 660 },
 };

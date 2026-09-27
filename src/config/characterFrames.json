@@ -1,23 +1,23 @@
 {
   "grandma": {
-    "width": 408,
-    "height": 330,
-    "anchorX": 137,
-    "anchorY": 326,
+    "width": 409,
+    "height": 354,
+    "anchorX": 138,
+    "anchorY": 350,
     "bodyHeight": 326
   },
   "father-in-law": {
-    "width": 330,
-    "height": 340,
-    "anchorX": 168,
-    "anchorY": 336,
+    "width": 348,
+    "height": 354,
+    "anchorX": 181,
+    "anchorY": 350,
     "bodyHeight": 336
   },
   "uncle": {
     "width": 428,
-    "height": 340,
+    "height": 364,
     "anchorX": 282,
-    "anchorY": 336,
+    "anchorY": 360,
     "bodyHeight": 330
   }
 }

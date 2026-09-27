@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { projectPoint } from './homography';
+import { projectPoint, unprojectPoint } from './homography';
 
 describe('rectToQuadMatrix3d', () => {
   const quad = [
@@ -28,5 +28,14 @@ describe('rectToQuadMatrix3d', () => {
     const mid = projectPoint(900, 600, quad, 450, 300).y;
     const bottom = projectPoint(900, 600, quad, 450, 600).y;
     expect(mid - top).toBeLessThan(bottom - mid);
+  });
+
+  it('역변환: unproject(project(p)) = p', () => {
+    for (const [x, y] of [[100, 50], [350, 160], [690, 310]] as const) {
+      const s = projectPoint(700, 320, quad, x, y);
+      const back = unprojectPoint(700, 320, quad, s.x, s.y);
+      expect(back.x).toBeCloseTo(x, 6);
+      expect(back.y).toBeCloseTo(y, 6);
+    }
   });
 });

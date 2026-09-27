@@ -1,5 +1,5 @@
 import { createDeck } from './cards';
-import type { GameState, HwatuCard, PlayerSeat } from './types';
+import type { GameState, HwatuCard, PlayerSeat, SeatPosition } from './types';
 
 export const HAND_SIZE = 7;
 export const FIELD_SIZE = 6;
@@ -29,8 +29,19 @@ export function seededRng(seed: number): Rng {
   };
 }
 
+/** 턴 순서: 반시계 방향 (위에서 내려다봤을 때 나 → 오른쪽 → 위 → 왼쪽) */
+export const TURN_ORDER: readonly SeatPosition[] = ['bottom', 'right', 'top', 'left'];
+
+/** 바닥에 같은 월 4장이 깔리면 재분배 (한 번에 먹을 수 없어 판이 성립하지 않음) */
+function fieldHasFourOfMonth(field: HwatuCard[]): boolean {
+  const count = new Map<number, number>();
+  for (const c of field) count.set(c.month, (count.get(c.month) ?? 0) + 1);
+  return [...count.values()].some((n) => n >= 4);
+}
+
 /**
  * 3인 고스톱 분배: 플레이어당 7장, 바닥 6장, 나머지 21장은 더미.
+ * 3인 × 7턴 = 21턴 = 더미 21장이므로 마지막 턴에 손패와 더미가 동시에 소진된다.
  * 실제 화투 분배 순서(4-3-3 등)는 연출 단계에서 처리하고, 여기서는 결과만 계산한다.
  */
 export function dealGame(
@@ -41,19 +52,37 @@ export function dealGame(
   if (players.length !== PLAYER_COUNT) {
     throw new Error(`3인 플레이만 지원합니다. (입력: ${players.length}명)`);
   }
+  const ordered = [...players].sort((a, b) => TURN_ORDER.indexOf(a.position) - TURN_ORDER.indexOf(b.position));
 
-  const deck: HwatuCard[] = shuffle(createDeck(), rng);
-  let cursor = 0;
-  const take = (n: number) => {
-    const out = deck.slice(cursor, cursor + n);
-    cursor += n;
-    return out;
-  };
+  for (let attempt = 0; ; attempt++) {
+    const deck: HwatuCard[] = shuffle(createDeck(), rng);
+    let cursor = 0;
+    const take = (n: number) => {
+      const out = deck.slice(cursor, cursor + n);
+      cursor += n;
+      return out;
+    };
+    const playerStates = ordered.map((seat) => ({
+      seat,
+      hand: sortHand(take(HAND_SIZE)),
+      captured: [],
+      goCount: 0,
+      goScore: 0,
+    }));
+    const field = take(FIELD_SIZE);
+    if (fieldHasFourOfMonth(field) && attempt < 100) continue;
 
-  const playerStates = players.map((seat) => ({ seat, hand: sortHand(take(HAND_SIZE)), captured: [] }));
-  const field = take(FIELD_SIZE);
-
-  return { players: playerStates, observer, field, deck: deck.slice(cursor) };
+    return {
+      players: playerStates,
+      observer,
+      field,
+      deck: deck.slice(cursor),
+      current: 0,
+      phase: 'play',
+      turn: { playedMatch: 0 },
+      ppeokMonths: [],
+    };
+  }
 }
 
 /** 손패 정렬: 월 오름차순 → 광/열끗/띠/피 순 */

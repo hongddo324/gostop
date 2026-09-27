@@ -12,6 +12,8 @@
 
 한 캐릭터의 6프레임은 모두 같은 캔버스 크기 + 같은 기준점으로 정규화하므로
 프레임 전환 시 몸 위치가 튀지 않는다.
+또한 시트마다 인물 크기가 조금씩 달라서(기쁨 시트가 2~4% 작음), 자세와 무관하게 일정한
+'앉은 다리 폭'을 기준으로 기쁨 프레임을 패 치기 프레임 크기에 맞춰 리샘플링한다.
 
 사용: python3 scripts/slice_characters.py   (pip install pillow numpy scipy)
 """
@@ -66,18 +68,35 @@ def extract_frames(path: Path):
         bx = np.where(band.any(axis=0))[0]
         anchor_x = (bx.min() + bx.max()) / 2  # 다리 영역 가로 중심
         anchor_y = y1 - y0  # 맨 아래
-        frames[(r, c)] = (crop, anchor_x, anchor_y)
+        leg_width = bx.max() - bx.min() + 1
+        frames[(r, c)] = (crop, anchor_x, anchor_y, leg_width)
     return frames
+
+
+def rescale(frame, k: float):
+    crop, ax, ay, lw = frame
+    if abs(k - 1) < 1e-3:
+        return frame
+    img = Image.fromarray(crop)
+    w, h = img.size
+    img = img.resize((max(1, round(w * k)), max(1, round(h * k))), Image.LANCZOS)
+    return np.asarray(img), ax * k, round(ay * k), lw * k
 
 
 def main():
     all_frames = {k: extract_frames(p) for k, p in SHEETS.items()}
     meta = {}
     for r, seat in enumerate(ROW_IDS):
+        # 시트 간 인물 크기 보정: 다리 폭 중앙값 비율
+        ref = float(np.median([all_frames["play"][(r, c)][3] for c in range(3)]))
         items = []
         for kind in ("play", "cheer"):
+            lw = float(np.median([all_frames[kind][(r, c)][3] for c in range(3)]))
+            k = ref / lw
+            print(f"{seat} {kind}: scale {k:.3f}")
             for c in range(3):
-                items.append((f"{kind}-{c + 1}", *all_frames[kind][(r, c)]))
+                crop, ax, ay, _ = rescale(all_frames[kind][(r, c)], k)
+                items.append((f"{kind}-{c + 1}", crop, ax, ay))
 
         left = max(ax for _, _, ax, _ in items)
         right = max(crop.shape[1] - ax for _, crop, ax, _ in items)

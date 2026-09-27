@@ -53,3 +53,27 @@ export function projectPoint(w: number, h: number, quad: readonly [Point, Point,
   const z = gw! * x + hw! * y + 1;
   return { x: (a! * x + b! * y + c!) / z, y: (d! * x + e! * y + f!) / z };
 }
+
+/** 3×3 행렬 역행렬 (행 우선) */
+function invert3(m: number[]): number[] {
+  const [a, b, c, d, e, f, g, h, i] = m as [number, number, number, number, number, number, number, number, number];
+  const A = e * i - f * h;
+  const B = -(d * i - f * g);
+  const Cc = d * h - e * g;
+  const det = a * A + b * B + c * Cc;
+  return [
+    A / det, -(b * i - c * h) / det, (b * f - c * e) / det,
+    B / det, (a * i - c * g) / det, -(a * f - c * d) / det,
+    Cc / det, -(a * h - b * g) / det, (a * e - b * d) / det,
+  ];
+}
+
+/** 화면(스테이지) 좌표 → 평면 좌표 (projectPoint 의 역변환) */
+export function unprojectPoint(w: number, h: number, quad: readonly [Point, Point, Point, Point], sx: number, sy: number): Point {
+  const m = rectToQuadMatrix3d(w, h, quad).slice(9, -1).split(',').map(Number);
+  const [a, d, , gw, b, e, , hw, , , , , c, f] = m as number[];
+  // 행 우선 H = [[a b c], [d e f], [gw hw 1]]
+  const inv = invert3([a!, b!, c!, d!, e!, f!, gw!, hw!, 1]);
+  const z = inv[6]! * sx + inv[7]! * sy + inv[8]!;
+  return { x: (inv[0]! * sx + inv[1]! * sy + inv[2]!) / z, y: (inv[3]! * sx + inv[4]! * sy + inv[5]!) / z };
+}
