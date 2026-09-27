@@ -18,6 +18,7 @@ src/
   config/stage.ts          논리 해상도 1280×720 (16:9), 장면/손패 패널 분할(HAND_PANEL_H)
   config/layout.ts         모포 사다리꼴 + 모포 평면 좌표(더미·바닥 12칸·좌석별 득점 패 영역), 캐릭터/이름표 배치
   config/characterFrames.json  캐릭터 프레임 캔버스·기준점 (scripts/slice_characters.py 가 생성)
+  lib/exitApp.ts           게임 종료 (앱: Capacitor App.exitApp, 웹: 안내)
   lib/homography.ts        직사각형→사다리꼴 투영 변환(CSS matrix3d) — 모포 위 카드를 모포 기울기대로 눕힘
   hooks/useStageScale.ts   뷰포트에 맞춘 비율 유지 배율 계산
   game/                    UI 비의존 순수 로직 (추후 AI/룰엔진 확장 지점)
@@ -42,6 +43,7 @@ src/
   hooks/useGameController.ts  엔진 단계를 타이머로 이어 AI 차례·뒤집기·먹기 자동 진행, 모션/대사
   components/
     StageContainer.tsx     고정 해상도 스테이지 + transform scale + 레터박스
+    TitleScreen.tsx        첫 화면: 거실 + 쉬는 가족 + 게임 시작 / 설정 / 게임 종료
     Background.tsx         거실 배경 (이미지 없으면 그라데이션)
     CharacterSeat.tsx      좌석 이름표/역할 뱃지
     Board.tsx              모포 평면(matrix3d): 더미 / 바닥 패 12칸 / 좌석별 득점 영역(가이드선) — 피 포함 모두 펼쳐 놓기, 넘치면 절반 비켜 다음 줄

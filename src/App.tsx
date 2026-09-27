@@ -11,6 +11,7 @@ import { MoneyStack } from './components/MoneyStack';
 import { MyHand } from './components/MyHand';
 import { SettingsModal } from './components/SettingsModal';
 import { StageContainer } from './components/StageContainer';
+import { TitleScreen } from './components/TitleScreen';
 import { CHARACTER_PLACEMENT, CHAT_POS, EXIT_DX, MONEY_POS, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
 import { SCENE_SHIFT, STAGE_HEIGHT, STAGE_WIDTH } from './config/stage';
 import { renderHintVoice } from './content/hintVoice';
@@ -30,10 +31,12 @@ const ME = SEATS.find((s) => s.isHuman)!;
 export default function App() {
   const { settings, update: updateSettings } = useSettings();
   const timing = scaledTiming(settings.speed);
-  const { game, motion, bubbles, chat, observerGone, deal, humanPlay, humanChoose, humanGoStop, say } =
+  const { game, motion, bubbles, chat, observerGone, deal, reset, humanPlay, humanChoose, humanGoStop, say } =
     useGameController(settings);
   const observer = game?.observer;
   const [showSettings, setShowSettings] = useState(false);
+  /** 첫 화면(타이틀) ↔ 게임 화면 */
+  const [screen, setScreen] = useState<'title' | 'game'>('title');
   const [hint, setHint] = useState<HintExplanation | null>(null);
   // 훈수방 접기/펼치기 (기기에 기억) + 접힌 동안 온 새 메시지 수
   const [chatCollapsed, setChatCollapsed] = useState(() => {
@@ -113,6 +116,38 @@ export default function App() {
   const humanGoStopTurn = game?.phase === 'goStop' && current?.seat.isHuman ? current : undefined;
   // 방금 낸 패가 손에서 날아오는 출발점
   const enterFrom = current ? PLAY_ORIGIN[current.seat.position] : undefined;
+
+  const settingsModal = showSettings && (
+    <SettingsModal
+      settings={settings}
+      onChange={updateSettings}
+      onClose={() => setShowSettings(false)}
+      onResetMoney={resetWallets}
+    />
+  );
+
+  /** 게임 시작: 게임 화면으로 들어가며 바로 패를 돌린다 */
+  const handleStart = () => {
+    setScreen('game');
+    handleDeal();
+  };
+  /** 🏠 첫 화면으로 — 진행 중인 판은 정산 없이 접는다 */
+  const handleHome = () => {
+    if (game && game.phase !== 'end' && !window.confirm('진행 중인 판을 그만두고 처음 화면으로 갈까요? (이번 판은 무효)')) return;
+    reset();
+    setSelectedId(null);
+    setHint(null);
+    setScreen('title');
+  };
+
+  if (screen === 'title') {
+    return (
+      <StageContainer>
+        <TitleScreen myMoney={wallets[ME.id] ?? 0} onStart={handleStart} onSettings={() => setShowSettings(true)} />
+        {settingsModal}
+      </StageContainer>
+    );
+  }
 
   return (
     <StageContainer>
@@ -254,6 +289,14 @@ export default function App() {
         )}
         <button
           type="button"
+          onClick={handleHome}
+          className="rounded-xl bg-black/45 px-3 py-2 text-lg font-black text-white"
+          aria-label="처음 화면"
+        >
+          🏠
+        </button>
+        <button
+          type="button"
           onClick={() => setShowSettings(true)}
           className="rounded-xl bg-black/45 px-3 py-2 text-lg font-black text-white"
           aria-label="설정"
@@ -292,14 +335,7 @@ export default function App() {
         />
       )}
       {zoom && <CardZoom title={zoom.title} cards={zoom.cards} onClose={() => setZoom(null)} />}
-      {showSettings && (
-        <SettingsModal
-          settings={settings}
-          onChange={updateSettings}
-          onClose={() => setShowSettings(false)}
-          onResetMoney={resetWallets}
-        />
-      )}
+      {settingsModal}
     </StageContainer>
   );
 }
