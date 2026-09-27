@@ -5,3 +5,6 @@ dist
 *.tsbuildinfo
 # Capacitor (추후 단계)
 android/app/build
+
+# 빌드된 APK (배포용 복사본)
+*.apk
