@@ -5,9 +5,10 @@
   assets-src/motion_{seatId}.webp   화투 치는 모션 8프레임 (2행 × 4열, 행 우선)
       1 대기 → 2 패 고르기 → 3 들어 올리기 → 4 높이 들기 → 5 내려치기 → 6 바닥에 탁 → 7 돌아오기 → 8 대기
   assets-src/characters_cheer.webp  득점 기쁨 3프레임 (3행 × 3열) — 행: 외할머니 / 이모부님(가운데) / 장인어른(오른쪽)
+  assets-src/sad_{seatId}.webp      남이 점수 가져갈 때 아쉬워하는 8프레임 (2행 × 4열, 행 우선)
 
 출력:
-  public/assets/characters/{seatId}/{play-1..8,cheer-1..3}.webp
+  public/assets/characters/{seatId}/{play-1..8,cheer-1..3,sad-1..8}.webp
   src/config/characterFrames.json   캐릭터별 캔버스 크기와 기준점(대기 프레임의 다리 하단 중앙)
 
 정렬 방식:
@@ -123,9 +124,16 @@ def main():
         cheer = cheer_sheet[CHEER_ROW[seat] * 3 : CHEER_ROW[seat] * 3 + 3]
         k = leg_width(ref) / float(np.median([leg_width(f) for f in cheer]))
         cheer = [resize(f, k) for f in cheer]
-        print(f"{seat}: cheer scale {k:.3f}")
+        sad = extract(SRC / f"sad_{seat}.webp", 2, 4)
+        ks = leg_width(ref) / float(np.median([leg_width(f) for f in sad]))
+        sad = [resize(f, ks) for f in sad]
+        print(f"{seat}: cheer scale {k:.3f}, sad scale {ks:.3f}")
 
-        named = [(f"play-{i + 1}", f) for i, f in enumerate(play)] + [(f"cheer-{i + 1}", f) for i, f in enumerate(cheer)]
+        named = (
+            [(f"play-{i + 1}", f) for i, f in enumerate(play)]
+            + [(f"cheer-{i + 1}", f) for i, f in enumerate(cheer)]
+            + [(f"sad-{i + 1}", f) for i, f in enumerate(sad)]
+        )
         placed = [(name, f, *align_offset(ref, f)) for name, f in named]
 
         x0 = min(dx for _, _, dx, _ in placed) - PAD

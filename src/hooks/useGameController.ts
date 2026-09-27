@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { playReleaseMs, playTotalMs, type CharacterPose } from '../components/CharacterSprite';
+import { playReleaseMs, playTotalMs, SAD_TOTAL_MS, type CharacterPose } from '../components/CharacterSprite';
 import { line, type LineKey } from '../content/dialogue';
 import { visibleContext } from '../logic/aiContext';
 import { chooseTargetAi, decideGoAi, evaluateAiMove } from '../logic/aiEngine';
@@ -250,7 +250,17 @@ export function useGameController(settings: Settings) {
       else if (r.captured.length > 0 && Math.random() < CHANCE.capture) speak(actor.id, 'capture');
       else if (r.captured.length === 0 && Math.random() < CHANCE.miss) speak(actor.id, 'miss');
     }
+    const bigEvent = scored || r.specials.some((e) => e !== 'ppeok' && e !== 'bonus');
     if (scored || r.specials.some((e) => e !== 'ppeok')) setPose(r.seatId, 'cheer', T().cheer);
+
+    // 남이 점수를 가져가거나 대박(쪽·따닥·싹쓸이 등)이 나면 다른 분들은 아쉬워한다
+    // (피를 뺏긴 사람은 무조건, 나머지는 큰 일일 때)
+    if (bigEvent || r.stolen.length > 0) {
+      const robbed = new Set(r.stolen.map((x) => x.fromSeatId));
+      [...g.players.map((p) => p.seat), g.observer]
+        .filter((s) => !s.isHuman && s.id !== r.seatId && (bigEvent || robbed.has(s.id)))
+        .forEach((s, i) => later(250 + i * 180, () => setPose(s.id, 'sad', SAD_TOTAL_MS + 200)));
+    }
 
     // 내가 잘하면 칭찬, 헛방/뻑이면 놀림 (훈수석 또는 상대 중 한 명)
     if (actor.isHuman) {
@@ -286,6 +296,10 @@ export function useGameController(settings: Settings) {
     const winner = game.players.find((p) => p.seat.id === res.winnerId)!.seat;
     if (!winner.isHuman) speak(winner.id, 'win', {}, undefined, 600);
     setPose(winner.id, 'cheer', 2600);
+    // 진 분들은 아쉬워하는 모션
+    game.players
+      .filter((p) => p.seat.id !== res.winnerId && !p.seat.isHuman)
+      .forEach((p, i) => later(400 + i * 250, () => setPose(p.seat.id, 'sad', SAD_TOTAL_MS + 400)));
     game.players
       .filter((p) => p.seat.id !== res.winnerId && !p.seat.isHuman)
       .forEach((p, i) => speak(p.seat.id, 'lose', {}, undefined, 1500 + i * 900));

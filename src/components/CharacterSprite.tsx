@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import FRAMES from '../config/characterFrames.json';
 
 /** 캐릭터 모션 상태 */
-export type CharacterPose = 'idle' | 'play' | 'cheer' | 'observe';
+export type CharacterPose = 'idle' | 'play' | 'cheer' | 'observe' | 'sad';
 
 type FrameMeta = { width: number; height: number; anchorX: number; anchorY: number; bodyHeight: number };
 
@@ -16,7 +16,18 @@ export const playReleaseMs = (frameMs: number) => PLAY_SEQ.indexOf(6) * frameMs;
 export const playTotalMs = (frameMs: number) => PLAY_SEQ.length * frameMs;
 
 const CHEER_SEQ = ['cheer-1', 'cheer-2', 'cheer-3', 'cheer-2'];
-const ALL_FRAMES = [...Array.from({ length: 8 }, (_, i) => `play-${i + 1}`), 'cheer-1', 'cheer-2', 'cheer-3'];
+/** 아쉬움 8프레임: 1 멍 → 2~3 말하며 손짓 → 4~6 볼 감싸고 한숨 → 7 손짓 → 8 체념 */
+const SAD_SEQ = [1, 2, 3, 4, 5, 6, 5, 6, 7, 8];
+/** 아쉬움 모션 1프레임 시간 (배속 무관 — 표정을 읽을 수 있게) */
+export const SAD_FRAME_MS = 170;
+export const SAD_TOTAL_MS = SAD_SEQ.length * SAD_FRAME_MS;
+const ALL_FRAMES = [
+  ...Array.from({ length: 8 }, (_, i) => `play-${i + 1}`),
+  'cheer-1',
+  'cheer-2',
+  'cheer-3',
+  ...Array.from({ length: 8 }, (_, i) => `sad-${i + 1}`),
+];
 
 const frameUrl = (seatId: string, f: string) => `${import.meta.env.BASE_URL}assets/characters/${seatId}/${f}.webp`;
 
@@ -38,6 +49,7 @@ interface Props {
  *  - play   : 패를 골라 들어 올렸다가 '탁' 내려치는 8프레임 모션
  *  - cheer  : 득점 시 좋아하는 모션 루프
  *  - observe: 훈수 좌석 — 패 없이 앉아 있는 프레임
+ *  - sad    : 남이 점수를 가져가거나 대박이 났을 때 아쉬워하는 8프레임 (한 번 재생)
  */
 export function CharacterSprite({ seatId, pose, x, y, height, frameMs }: Props) {
   const meta = (FRAMES as Record<string, FrameMeta>)[seatId];
@@ -79,6 +91,10 @@ function useFrame(pose: CharacterPose, frameMs: number): string {
       const id = setInterval(() => setTick((t) => t + 1), 230);
       return () => clearInterval(id);
     }
+    if (pose === 'sad') {
+      const id = setInterval(() => setTick((t) => Math.min(t + 1, SAD_SEQ.length - 1)), SAD_FRAME_MS);
+      return () => clearInterval(id);
+    }
     if (pose === 'play') {
       const id = setInterval(() => setTick((t) => Math.min(t + 1, PLAY_SEQ.length - 1)), frameMs);
       return () => clearInterval(id);
@@ -103,6 +119,8 @@ function useFrame(pose: CharacterPose, frameMs: number): string {
       return `play-${PLAY_SEQ[Math.min(tick, PLAY_SEQ.length - 1)]}`;
     case 'cheer':
       return CHEER_SEQ[tick % CHEER_SEQ.length]!;
+    case 'sad':
+      return `sad-${SAD_SEQ[Math.min(tick, SAD_SEQ.length - 1)]}`;
     case 'observe':
       return 'cheer-3';
     case 'idle':
