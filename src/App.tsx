@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Background } from './components/Background';
 import { Board } from './components/Board';
 import { CardZoom } from './components/CardZoom';
@@ -15,6 +15,7 @@ import { TitleScreen } from './components/TitleScreen';
 import { CHARACTER_PLACEMENT, CHAT_POS, EXIT_DX, MONEY_POS, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
 import { SCENE_SHIFT, STAGE_HEIGHT, STAGE_WIDTH } from './config/stage';
 import { renderHintVoice } from './content/hintVoice';
+import { exitApp, onBackButton } from './lib/exitApp';
 import { visibleContext } from './logic/aiContext';
 import { getHintExplanation, type HintExplanation } from './logic/hintEngine';
 import { settleMoney, type MoneySettlement } from './game/money';
@@ -139,6 +140,17 @@ export default function App() {
     setHint(null);
     setScreen('title');
   };
+
+  // Android 뒤로가기: 창이 떠 있으면 닫고, 게임 중이면 첫 화면으로, 첫 화면이면 앱 종료
+  const backRef = useRef<() => void>(() => {});
+  backRef.current = () => {
+    if (showSettings) return setShowSettings(false);
+    if (zoom) return setZoom(null);
+    if (hint) return setHint(null);
+    if (screen === 'game') return handleHome();
+    exitApp();
+  };
+  useEffect(() => onBackButton(() => backRef.current()), []);
 
   if (screen === 'title') {
     return (

@@ -9,7 +9,17 @@ npm install
 npm run dev        # 개발 서버
 npm test           # 카드/분배 로직 단위 테스트 (vitest)
 npm run build      # 타입체크 + 프로덕션 빌드 (dist/, base: './' → Capacitor 대응)
+npm run android:apk  # 웹 빌드 → Capacitor 동기화 → 디버그 APK
+                     # 결과: android/app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Android APK 빌드 준비물
+
+- JDK 21, Android SDK (platform 36, build-tools 36) — `android/local.properties` 에 `sdk.dir=...` 또는 `ANDROID_HOME`
+- 앱 ID `com.hongddo.wolgokgostop`, 앱 이름 '월곡이 고스톱' (`capacitor.config.ts`)
+- 가로 고정(sensorLandscape) · 전체화면(상태바/내비바 숨김) · 화면 꺼짐 방지 — `MainActivity.java`, `AndroidManifest.xml`
+- 아이콘/스플래시: `python3 scripts/make_icon.py` (적응형 아이콘 + 구형 아이콘 + 스플래시 + 파비콘)
+- 뒤로가기: 창 닫기 → 게임 중이면 첫 화면 → 첫 화면이면 앱 종료
 
 ## 구조
 
@@ -18,7 +28,7 @@ src/
   config/stage.ts          논리 해상도 1280×720 (16:9), 장면/손패 패널 분할(HAND_PANEL_H)
   config/layout.ts         모포 사다리꼴 + 모포 평면 좌표(더미·바닥 12칸·좌석별 득점 패 영역), 캐릭터/이름표 배치
   config/characterFrames.json  캐릭터 프레임 캔버스·기준점 (scripts/slice_characters.py 가 생성)
-  lib/exitApp.ts           게임 종료 (앱: Capacitor App.exitApp, 웹: 안내)
+  lib/exitApp.ts           게임 종료·뒤로가기 버튼 (앱: @capacitor/app, 웹: 안내)
   lib/homography.ts        직사각형→사다리꼴 투영 변환(CSS matrix3d) — 모포 위 카드를 모포 기울기대로 눕힘
   hooks/useStageScale.ts   뷰포트에 맞춘 비율 유지 배율 계산
   game/                    UI 비의존 순수 로직 (추후 AI/룰엔진 확장 지점)

@@ -14,5 +14,5 @@
     "allowImportingTsExtensions": true,
     "strict": true
   },
-  "include": ["vite.config.ts", "src/**/*.test.ts"]
+  "include": ["vite.config.ts", "capacitor.config.ts", "src/**/*.test.ts"]
 }
