@@ -112,8 +112,8 @@ export const CAPTURE_LAYOUT: Record<SeatPosition, CaptureLayout> = {
  */
 export const PILE_SCALE: Record<SeatPosition, number> = { top: 1.45, left: 1, right: 1, bottom: 1 };
 
-/** 좌석별 득점 패 회전 — 외할머니(왼쪽)·장인어른(오른쪽)은 90° 꺾어 본인 쪽을 향하게 */
-export const PILE_ROTATION: Record<SeatPosition, number> = { left: 90, right: -90, top: 0, bottom: 0 };
+/** 좌석별 득점 패 회전 — 각자 본인 쪽을 향하게 (외할머니 90°, 장인어른 -90°, 이모부님 180°) */
+export const PILE_ROTATION: Record<SeatPosition, number> = { left: 90, right: -90, top: 180, bottom: 0 };
 
 /**
  * 캐릭터 스프라이트 배치 (배경 좌표).
