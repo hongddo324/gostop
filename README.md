@@ -29,16 +29,24 @@ src/
                            쪽/뻑/따닥/뻑 먹기/싹쓸이, 피 빼앗기, 고/스톱, 광박·피박 정산
     scoring.ts             점수(광·열끗·띠·피, 고도리·홍단·청단·초단), 고 보너스
     rules.ts               집마다 다른 룰 값(고/스톱 기준 3점, 피박 기준 등)
-    ai.ts                  AI: 낼 패/먹을 패 선택, 고/스톱 판단 (훈수 추천에도 사용)
-  content/dialogue.ts      캐릭터별 대사 (외할머니 충청도 사투리 / 이모부님 유쾌 / 장인어른 점잖음), 상황별 여러 줄
+  logic/                   AI · 훈수 엔진 (UI 비의존)
+    aiEngine.ts            기댓값 휴리스틱 평가: 득점·족보·견제·피 전략·뻑 확률·버림패 안전도
+                           evaluateAiMove(hand, field, opponents, deckRemaining, difficulty) — 초급/중급/고급
+    hintEngine.ts          getHintExplanation(): 고급 평가 재활용 → 추천 패 + 핵심 이유 + 상세 설명 + 가중치
+    aiContext.ts           게임 상태에서 '볼 수 있는 정보'만 추출 (상대 손패·더미 순서 제외)
+  settings.ts              난이도 / 배속(1~3배) / 도움 모드 — localStorage 저장
+  content/dialogue.ts      캐릭터별 대사 — 모두 나에게 반말 (외할머니 '손주사위' 충청도 / 이모부님 '홍서' / 장인어른 '사위')
+  content/hintVoice.ts     훈수 설명을 훈수 두는 사람 말투로 변환
   hooks/useGameController.ts  엔진 단계를 타이머로 이어 AI 차례·뒤집기·먹기 자동 진행, 모션/대사
   components/
     StageContainer.tsx     고정 해상도 스테이지 + transform scale + 레터박스
     Background.tsx         거실 배경 (이미지 없으면 그라데이션)
     CharacterSeat.tsx      좌석 이름표/역할 뱃지
-    Board.tsx              모포 평면(matrix3d): 더미 / 바닥 패 12칸 / 각자 앞 득점 패(광·열끗·띠·피)
+    Board.tsx              모포 평면(matrix3d): 더미 / 바닥 패 12칸 / 좌석별 득점 영역(가이드선) — 최소 간격 보장 겹침, 피 5장 묶음
     CardZoom.tsx           모포 위 카드 탭 시 확대 보기
     Modals.tsx             먹을 패 선택 / 고·스톱 / 판 결과
+    SettingsModal.tsx      우상단 ⚙ 설정
+    HintPanel.tsx          도움 모드 상세 훈수 패널
     CharacterSprite.tsx    배경과 분리된 캐릭터 스프라이트 + 모션(idle / play 8프레임 '탁' / cheer / observe)
     MyHand.tsx             장면 아래 내 손패 전용 패널 (탭=선택·같은 월 강조, 한 번 더 탭/‘내기’=내기)
     Card.tsx               카드 (이미지 → 실패 시 텍스트 카드 fallback)
@@ -61,10 +69,10 @@ src/
 ## 게임 규칙 (3인 고스톱)
 
 - 좌석: 나(아래) · 외할머니(왼쪽) · 이모부님(가운데) · 장인어른(오른쪽)
-- 광 팔기: 판마다 4명 중 1명(나 포함)을 무작위로 뽑아 7장을 주고, 그 사람은 광을 팔고 빠져 훈수를 둔다.
+- 광 팔기: 판마다 상대 3명 중 1명을 무작위로 뽑아 7장을 주고, 그 사람은 광을 팔고 빠져 훈수를 둔다 (나는 항상 참여).
   광값 = 광 장수 × 1점을 플레이어 1명당 받음. 판 7장은 더미 맨 아래로 돌려 3인 판을 그대로 진행
-  (나를 후보에서 빼려면 `rules.ts` 의 `gwangSellerCandidates: 'ai'`)
 - 턴 순서: 반시계 (나 → 오른쪽 → 가운데 → 왼쪽 중 참가자), 첫 판은 내가 선
+- AI 난이도: 초급(짝 맞는 패 무작위, 고/스톱 반반) · 중급(내 득점만 탐욕, 1고 후 스톱) · 고급(견제+족보+뻑 확률, 냉정한 고/스톱)
 - 보너스패(쌍피 2 · 쓰리피 3): 손에서 내면 바로 가져가고 더미 1장을 받아 한 번 더 냄,
   뒤집어 나오면 가져가고 한 장 더 뒤집음, 분배 때 바닥에 깔리면 선이 가져가고 보충
 - 고/스톱: 3점 이상이고 마지막 고 이후 점수가 오르면 선택. 손패를 다 쓰면 자동 스톱

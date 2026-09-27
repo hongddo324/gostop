@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { aiChooseCard, aiChooseTarget, aiDecideGo } from './ai';
+import { chooseTargetAi, decideGoAi, evaluateAiMove, type Difficulty } from '../logic/aiEngine';
+import { visibleContext } from '../logic/aiContext';
 import { createDeck } from './cards';
 import { dealGame, seededRng } from './deal';
 import { choose, declareGoStop, flipCard, playCard, resolveTurn, totalCards } from './engine';
@@ -181,22 +182,23 @@ describe('고/스톱', () => {
 });
 
 describe('AI 전체 판 시뮬레이션', () => {
-  it('500판: 카드 50장 보존, 모든 판이 종료', () => {
+  it.each(['beginner', 'intermediate', 'expert'] as Difficulty[])('%s 300판: 카드 50장 보존, 모든 판이 종료', (difficulty) => {
     const { players, observer } = splitSeats('uncle');
     let wins = 0;
     let nagari = 0;
-    for (let seed = 1; seed <= 500; seed++) {
+    for (let seed = 1; seed <= 300; seed++) {
       const rng = seededRng(seed);
       let s = dealGame(players, observer, rng);
       let guard = 0;
       while (s.phase !== 'end') {
         if (++guard > 200) throw new Error(`무한 루프 seed=${seed}`);
+        const v = visibleContext(s);
         switch (s.phase) {
           case 'play':
-            s = playCard(s, aiChooseCard(s).id);
+            s = playCard(s, evaluateAiMove(v.hand, v.field, v.opponents, v.deckRemainingCount, difficulty, v.myCaptured, rng).id);
             break;
           case 'choose':
-            s = choose(s, aiChooseTarget(s.pending!.options).id);
+            s = choose(s, chooseTargetAi(s.pending!.options, v.opponents, difficulty, v.myCaptured, rng).id);
             break;
           case 'flip':
             s = flipCard(s);
@@ -205,7 +207,7 @@ describe('AI 전체 판 시뮬레이션', () => {
             s = resolveTurn(s);
             break;
           case 'goStop':
-            s = declareGoStop(s, aiDecideGo(s));
+            s = declareGoStop(s, decideGoAi({ ...v, handCount: v.hand.length }, difficulty, rng));
             break;
         }
         expect(totalCards(s)).toBe(50);
@@ -216,7 +218,32 @@ describe('AI 전체 판 시뮬레이션', () => {
         expect(s.players.every((p) => p.hand.length === 0)).toBe(true);
       }
     }
-    expect(wins + nagari).toBe(500);
+    expect(wins + nagari).toBe(300);
     expect(wins).toBeGreaterThan(nagari); // 대부분의 판은 승자가 나온다
+  });
+
+  it('고급 AI 가 초급 AI 보다 강하다 (같은 판 1:2 대결 승률)', () => {
+    const { players, observer } = splitSeats('uncle');
+    const winsOf = (strong: Difficulty, weak: Difficulty) => {
+      let strongWins = 0;
+      for (let seed = 1; seed <= 400; seed++) {
+        const rng = seededRng(seed);
+        let s = dealGame(players, observer, rng);
+        while (s.phase !== 'end') {
+          const v = visibleContext(s);
+          const d = s.players[s.current]!.seat.id === 'me' ? strong : weak;
+          if (s.phase === 'play') s = playCard(s, evaluateAiMove(v.hand, v.field, v.opponents, v.deckRemainingCount, d, v.myCaptured, rng).id);
+          else if (s.phase === 'choose') s = choose(s, chooseTargetAi(s.pending!.options, v.opponents, d, v.myCaptured, rng).id);
+          else if (s.phase === 'flip') s = flipCard(s);
+          else if (s.phase === 'resolve') s = resolveTurn(s);
+          else s = declareGoStop(s, decideGoAi({ ...v, handCount: v.hand.length }, d, rng));
+        }
+        if (s.result!.winnerId === 'me') strongWins++;
+      }
+      return strongWins;
+    };
+    const expertVsBeginner = winsOf('expert', 'beginner');
+    const beginnerVsBeginner = winsOf('beginner', 'beginner');
+    expect(expertVsBeginner).toBeGreaterThan(beginnerVsBeginner);
   });
 });

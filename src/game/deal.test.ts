@@ -95,10 +95,8 @@ describe('광 팔기 (훈수)', () => {
     }
   });
 
-  it('나도 광 팔 사람으로 뽑힐 수 있고, 뽑히면 AI 3명이 친다', () => {
+  it('광 팔 사람은 항상 상대 3명 중 1명 (나는 항상 참여)', () => {
     const picked = new Set(Array.from({ length: 200 }, (_, i) => pickGwangSeller(seededRng(i + 1)).id));
-    expect(picked).toEqual(new Set(['me', 'grandma', 'uncle', 'father-in-law']));
-    const { players } = splitSeats('me');
-    expect(players.every((p) => !p.isHuman)).toBe(true);
+    expect(picked).toEqual(new Set(['grandma', 'uncle', 'father-in-law']));
   });
 });

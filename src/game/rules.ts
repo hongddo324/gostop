@@ -11,6 +11,6 @@ export const RULES = {
   stealPerSpecial: 1,
   /** 광값: 광 판 사람이 플레이어 1명당 광 1장마다 받는 점수 */
   gwangPrice: 1,
-  /** 광 팔 사람(=훈수) 후보. 'all' 이면 나도 뽑힐 수 있다 (뽑히면 구경) */
-  gwangSellerCandidates: 'all' as 'all' | 'ai',
+  /** 광 팔 사람(=훈수) 후보. 기본 'ai' = 상대 3명 중 1명 (나는 항상 참여) */
+  gwangSellerCandidates: 'ai' as 'all' | 'ai',
 } as const;

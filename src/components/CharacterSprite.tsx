@@ -8,13 +8,12 @@ type FrameMeta = { width: number; height: number; anchorX: number; anchorY: numb
 
 /**
  * 패 치기 8프레임: 1 대기 → 2 고르기 → 3 들기 → 4 높이 들기 → 5 내려치기 → 6 바닥에 탁 → 7 돌아오기 → 8 대기
- * 'play' 포즈는 2~8 을 PLAY_FRAME_MS 간격으로 한 번 재생한다.
+ * 'play' 포즈는 2~8 을 frameMs 간격으로 한 번 재생한다 (배속에 따라 frameMs 가 바뀐다).
  */
-export const PLAY_FRAME_MS = 95;
 const PLAY_SEQ = [2, 3, 4, 5, 6, 6, 7, 8];
 /** 카드가 손을 떠나는 시점 (6번 '탁' 프레임) */
-export const PLAY_RELEASE_MS = PLAY_SEQ.indexOf(6) * PLAY_FRAME_MS;
-export const PLAY_TOTAL_MS = PLAY_SEQ.length * PLAY_FRAME_MS;
+export const playReleaseMs = (frameMs: number) => PLAY_SEQ.indexOf(6) * frameMs;
+export const playTotalMs = (frameMs: number) => PLAY_SEQ.length * frameMs;
 
 const CHEER_SEQ = ['cheer-1', 'cheer-2', 'cheer-3', 'cheer-2'];
 const ALL_FRAMES = [...Array.from({ length: 8 }, (_, i) => `play-${i + 1}`), 'cheer-1', 'cheer-2', 'cheer-3'];
@@ -29,6 +28,8 @@ interface Props {
   y: number;
   /** 표시 키(px) */
   height: number;
+  /** 패 치기 프레임 간격(ms) */
+  frameMs: number;
 }
 
 /**
@@ -38,9 +39,9 @@ interface Props {
  *  - cheer  : 득점 시 좋아하는 모션 루프
  *  - observe: 훈수 좌석 — 패 없이 앉아 있는 프레임
  */
-export function CharacterSprite({ seatId, pose, x, y, height }: Props) {
+export function CharacterSprite({ seatId, pose, x, y, height, frameMs }: Props) {
   const meta = (FRAMES as Record<string, FrameMeta>)[seatId];
-  const frame = useFrame(pose);
+  const frame = useFrame(pose, frameMs);
 
   // 모션 중 깜빡임 방지용 프리로드
   useEffect(() => {
@@ -69,17 +70,17 @@ export function CharacterSprite({ seatId, pose, x, y, height }: Props) {
   );
 }
 
-function useFrame(pose: CharacterPose): string {
+function useFrame(pose: CharacterPose, frameMs: number): string {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
     setTick(0);
     if (pose === 'cheer') {
-      const id = setInterval(() => setTick((t) => t + 1), 200);
+      const id = setInterval(() => setTick((t) => t + 1), 230);
       return () => clearInterval(id);
     }
     if (pose === 'play') {
-      const id = setInterval(() => setTick((t) => Math.min(t + 1, PLAY_SEQ.length - 1)), PLAY_FRAME_MS);
+      const id = setInterval(() => setTick((t) => Math.min(t + 1, PLAY_SEQ.length - 1)), frameMs);
       return () => clearInterval(id);
     }
     if (pose === 'idle') {
@@ -94,6 +95,7 @@ function useFrame(pose: CharacterPose): string {
       next();
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pose]);
 
   switch (pose) {

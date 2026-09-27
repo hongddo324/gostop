@@ -5,22 +5,31 @@ import { CardZoom } from './components/CardZoom';
 import { CharacterSeat } from './components/CharacterSeat';
 import { CharacterSprite } from './components/CharacterSprite';
 import { ChoiceModal, GoStopModal, ResultModal } from './components/Modals';
+import { HintPanel } from './components/HintPanel';
 import { MyHand } from './components/MyHand';
+import { SettingsModal } from './components/SettingsModal';
 import { StageContainer } from './components/StageContainer';
 import { CHARACTER_PLACEMENT, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
 import { SCENE_SHIFT, STAGE_HEIGHT, STAGE_WIDTH } from './config/stage';
-import { aiChooseCard } from './game/ai';
+import { renderHintVoice } from './content/hintVoice';
+import { visibleContext } from './logic/aiContext';
+import { getHintExplanation, type HintExplanation } from './logic/hintEngine';
+import { useSettings } from './settings';
 import { currentPlayer } from './game/engine';
 import { scoreOf } from './game/scoring';
 import { SEATS } from './game/seats';
 import type { HwatuCard } from './game/types';
-import { useGameController } from './hooks/useGameController';
+import { scaledTiming, useGameController } from './hooks/useGameController';
 
 const ME = SEATS.find((s) => s.isHuman)!;
 
 export default function App() {
-  const { game, motion, bubbles, deal, humanPlay, humanChoose, humanGoStop, speak } = useGameController();
+  const { settings, update: updateSettings } = useSettings();
+  const timing = scaledTiming(settings.speed);
+  const { game, motion, bubbles, deal, humanPlay, humanChoose, humanGoStop, say } = useGameController(settings);
   const observer = game?.observer;
+  const [showSettings, setShowSettings] = useState(false);
+  const [hint, setHint] = useState<HintExplanation | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<{ title: string; cards: HwatuCard[] } | null>(null);
 
@@ -30,14 +39,30 @@ export default function App() {
   const myHand = playerOf(ME.id)?.hand ?? [];
   const selectedCard = myHand.find((c) => c.id === selectedId);
 
-  // 내 차례가 오면 훈수석(광 판 사람)이 훈수 한마디 (AI 추천 패)
+  /** 훈수 엔진(고급 평가) 결과 — 내가 볼 수 있는 정보만 사용 */
+  const computeHint = () => {
+    if (!game || !myTurn) return null;
+    const v = visibleContext(game, playerOf(ME.id));
+    return getHintExplanation({ ...v });
+  };
+
+  // 내 차례가 오면 (자동 훈수 설정 시) 광 판 사람이 자기 말투로 훈수 한마디
   useEffect(() => {
-    if (!myTurn || !game || game.observer.isHuman) return;
-    const pick = aiChooseCard(game, myHand);
-    const matches = game.field.some((c) => c.month === pick.month);
-    speak(game.observer.id, pick.isBonus ? 'hintBonus' : matches ? 'hint' : 'hintDiscard', { month: pick.month }, undefined, 500);
+    setHint(null);
+    if (!myTurn || !game || !settings.autoHint) return;
+    const h = computeHint();
+    if (h) setTimeout(() => say(game.observer.id, renderHintVoice(h, game.observer.id)), 500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myTurn]);
+
+  /** 도움 모드: 훈수 듣기 — 상세 패널 + 말풍선 + 추천 패 선택 */
+  const handleHint = () => {
+    const h = computeHint();
+    if (!h || !game) return;
+    setHint(h);
+    setSelectedId(h.recommendedCardId);
+    say(game.observer.id, renderHintVoice(h, game.observer.id));
+  };
 
   const handleDeal = () => {
     deal();
@@ -46,6 +71,7 @@ export default function App() {
   const handlePlay = (c: HwatuCard) => {
     humanPlay(c.id);
     setSelectedId(null);
+    setHint(null);
   };
 
   const humanPending = game?.phase === 'choose' && current?.seat.isHuman ? game.pending : undefined;
@@ -69,6 +95,7 @@ export default function App() {
           captures={game?.players.map((p) => ({ position: p.seat.position, name: p.seat.name, cards: p.captured })) ?? []}
           highlightMonth={myTurn ? selectedCard?.month : undefined}
           enterFrom={enterFrom}
+          moveMs={timing.cardMove}
           onInspect={(title, cards) => setZoom({ title, cards })}
         />
 
@@ -77,7 +104,7 @@ export default function App() {
           const place = CHARACTER_PLACEMENT[seat.position];
           if (!place) return null;
           const pose = motion[seat.id] ?? (seat.id === observer?.id ? 'observe' : 'idle');
-          return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} {...place} />;
+          return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} frameMs={timing.playFrame} {...place} />;
         })}
 
         {/* 좌석 이름표 + 말풍선 */}
@@ -132,13 +159,16 @@ export default function App() {
         soldHand={game?.observer.isHuman ? game.gwangSale.hand : undefined}
         onSelect={(c) => setSelectedId((prev) => (prev === c.id ? null : c.id))}
         onPlay={handlePlay}
+        onHint={settings.helpMode && !game?.observer.isHuman ? handleHint : undefined}
+        recommendedId={hint?.recommendedCardId}
       />
 
       {/* HUD */}
       <div className="absolute left-4 top-3 z-40 rounded-xl bg-black/45 px-3 py-1.5 text-white">
         <div className="text-lg font-black tracking-tight">우리집 고스톱</div>
         <div className="text-[11px] opacity-80">
-          {current ? `${current.seat.name} 차례 · 더미 ${game!.deck.length}장` : '3명 플레이 · 광 판 1명 훈수'}
+          {current ? `${current.seat.name} 차례 · 더미 ${game!.deck.length}장` : '3명 플레이 · 광 판 1명 훈수'} ·{' '}
+          {settings.speed}배속
         </div>
       </div>
 
@@ -149,6 +179,14 @@ export default function App() {
             {game.gwangSale.gwangCount > 0 ? `(광 ${game.gwangSale.gwangCount}장)` : '(광 없음)'}
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => setShowSettings(true)}
+          className="rounded-xl bg-black/45 px-3 py-2 text-lg font-black text-white"
+          aria-label="설정"
+        >
+          ⚙
+        </button>
         <button
           type="button"
           onClick={handleDeal}
@@ -171,7 +209,18 @@ export default function App() {
           onNext={handleDeal}
         />
       )}
+      {hint && myTurn && observer && (
+        <HintPanel
+          hint={hint}
+          card={myHand.find((c) => c.id === hint.recommendedCardId)}
+          adviser={observer.name}
+          onClose={() => setHint(null)}
+        />
+      )}
       {zoom && <CardZoom title={zoom.title} cards={zoom.cards} onClose={() => setZoom(null)} />}
+      {showSettings && (
+        <SettingsModal settings={settings} onChange={updateSettings} onClose={() => setShowSettings(false)} />
+      )}
     </StageContainer>
   );
 }

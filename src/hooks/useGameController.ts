@@ -1,26 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { PLAY_RELEASE_MS, PLAY_TOTAL_MS, type CharacterPose } from '../components/CharacterSprite';
+import { playReleaseMs, playTotalMs, type CharacterPose } from '../components/CharacterSprite';
 import { line, type LineKey } from '../content/dialogue';
-import { aiChooseCard, aiChooseTarget, aiDecideGo } from '../game/ai';
+import { visibleContext } from '../logic/aiContext';
+import { chooseTargetAi, decideGoAi, evaluateAiMove } from '../logic/aiEngine';
+import type { Settings } from '../settings';
 import { dealGame } from '../game/deal';
 import { choose, currentPlayer, declareGoStop, flipCard, playCard, resolveTurn } from '../game/engine';
 import { pickGwangSeller, splitSeats } from '../game/seats';
 import type { GameState, SpecialEvent } from '../game/types';
 
-/** 연출 타이밍 (ms) */
-export const TIMING = {
-  aiThink: 800, // AI 가 패를 고르는 시간
-  playPose: PLAY_TOTAL_MS + 120, // 패 치기 8프레임 모션
-  beforeFlip: 650, // 낸 패가 날아간 뒤 더미 뒤집기까지
-  beforeResolve: 750, // 뒤집은 패 확인 후 먹기까지
-  aiChoose: 600,
-  aiGoStop: 1300,
-  cheer: 1800,
-  firstTurnDelay: 2600, // 광 팔기·인사 대사를 읽을 시간
+/**
+ * 1배속 기준 연출 타이밍 (ms). 가족끼리 느긋하게 치는 속도. 배속 설정으로 나눈다.
+ */
+export const BASE_TIMING = {
+  aiThink: 1700, // AI 가 패를 고르는 시간
+  playFrame: 150, // 패 치기 모션 프레임 간격 (8프레임 ≈ 1.2초)
+  beforeFlip: 1300, // 낸 패가 날아간 뒤 더미 뒤집기까지
+  beforeResolve: 1400, // 뒤집은 패 확인 후 먹기까지
+  aiChoose: 1100,
+  aiGoStop: 2000,
+  cheer: 2400,
+  firstTurnDelay: 3800, // 광 팔기·인사 대사를 읽을 시간
+  cardMove: 850, // 카드가 모포 위를 이동하는 시간
 };
+export type Timing = typeof BASE_TIMING;
+
+export function scaledTiming(speed: number): Timing {
+  return Object.fromEntries(Object.entries(BASE_TIMING).map(([k, v]) => [k, Math.round(v / speed)])) as Timing;
+}
 
 /** 대사 확률 — 매 턴 모두 떠들면 정신없으므로 */
-const CHANCE = { play: 0.35, capture: 0.45, miss: 0.35, watch: 0.35, robbed: 0.7, otherGo: 0.8 };
+const CHANCE = { play: 0.35, capture: 0.45, miss: 0.35, watch: 0.35, robbed: 0.7, otherGo: 0.8, praiseMe: 0.55, teaseMe: 0.4 };
 
 export const SPECIAL_TEXT: Record<SpecialEvent, string> = {
   jjok: '쪽!',
@@ -36,8 +46,8 @@ export interface Bubble {
   text: string;
 }
 
-/** 말풍선 표시 시간: 글자 수에 비례 */
-const bubbleMs = (text: string) => Math.min(4000, 1300 + text.length * 70);
+/** 말풍선 표시 시간: 글자 수에 비례 (배속과 무관하게 읽을 시간 확보) */
+const bubbleMs = (text: string) => Math.min(6000, 1800 + text.length * 90);
 
 /**
  * 게임 진행 컨트롤러.
@@ -45,7 +55,12 @@ const bubbleMs = (text: string) => Math.min(4000, 1300 + text.length * 70);
  * 사람 차례에는 입력을 기다린다. 캐릭터 모션과 대사(말풍선)도 여기서 관리한다.
  * 판마다 광 팔 사람(=훈수)을 무작위로 뽑는다.
  */
-export function useGameController() {
+export function useGameController(settings: Settings) {
+  // 설정은 진행 중에도 바뀔 수 있으므로 ref 로 최신값을 읽는다
+  const cfg = useRef(settings);
+  cfg.current = settings;
+  const T = () => scaledTiming(cfg.current.speed);
+
   const [game, setGame] = useState<GameState | null>(null);
   const [motion, setMotion] = useState<Record<string, CharacterPose>>({});
   const [bubbles, setBubbles] = useState<Record<string, Bubble>>({});
@@ -167,34 +182,47 @@ export function useGameController() {
       case 'play':
         if (ai) {
           // 판 첫 차례는 광 팔기·인사 대사를 읽을 시간을 준다
-          const think = game.lastReport ? TIMING.aiThink : TIMING.firstTurnDelay;
+          const tm = T();
+          const think = game.lastReport ? tm.aiThink : tm.firstTurnDelay;
           // 모션 시작 → '탁' 내려치는 프레임에 맞춰 카드가 손을 떠난다
           t = setTimeout(() => {
-            setPose(me.seat.id, 'play', TIMING.playPose);
+            setPose(me.seat.id, 'play', playTotalMs(tm.playFrame) + 150);
             if (Math.random() < CHANCE.play) speak(me.seat.id, 'play');
-            later(PLAY_RELEASE_MS, () => setGame((g) => (g === game ? playCard(g, aiChooseCard(g).id) : g)));
+            later(playReleaseMs(tm.playFrame), () =>
+              setGame((g) => {
+                if (g !== game) return g;
+                const v = visibleContext(g);
+                const card = evaluateAiMove(v.hand, v.field, v.opponents, v.deckRemainingCount, cfg.current.difficulty, v.myCaptured);
+                return playCard(g, card.id);
+              }),
+            );
           }, think);
         }
         break;
       case 'choose':
-        if (ai) step(TIMING.aiChoose, (g) => choose(g, aiChooseTarget(g.pending!.options).id));
+        if (ai)
+          step(T().aiChoose, (g) => {
+            const v = visibleContext(g);
+            return choose(g, chooseTargetAi(g.pending!.options, v.opponents, cfg.current.difficulty, v.myCaptured).id);
+          });
         break;
       case 'flip':
-        step(TIMING.beforeFlip, flipCard);
+        step(T().beforeFlip, flipCard);
         break;
       case 'resolve':
-        step(TIMING.beforeResolve, resolveTurn);
+        step(T().beforeResolve, resolveTurn);
         break;
       case 'goStop':
         if (ai) {
           t = setTimeout(() => {
             const g = gameRef.current;
             if (g !== game) return;
-            const go = aiDecideGo(g);
+            const v = visibleContext(g);
+            const go = decideGoAi({ ...v, handCount: v.hand.length }, cfg.current.difficulty);
             speak(me.seat.id, go ? 'go' : 'stop', {}, go ? '고!' : '스톱!');
             if (go) reactToGo(g, me.seat.id);
             setGame(declareGoStop(g, go));
-          }, TIMING.aiGoStop);
+          }, T().aiGoStop);
         }
         break;
     }
@@ -222,7 +250,18 @@ export function useGameController() {
       else if (r.captured.length > 0 && Math.random() < CHANCE.capture) speak(actor.id, 'capture');
       else if (r.captured.length === 0 && Math.random() < CHANCE.miss) speak(actor.id, 'miss');
     }
-    if (scored || r.specials.some((e) => e !== 'ppeok')) setPose(r.seatId, 'cheer', TIMING.cheer);
+    if (scored || r.specials.some((e) => e !== 'ppeok')) setPose(r.seatId, 'cheer', T().cheer);
+
+    // 내가 잘하면 칭찬, 헛방/뻑이면 놀림 (훈수석 또는 상대 중 한 명)
+    if (actor.isHuman) {
+      const good = scored || r.specials.some((e) => e !== 'ppeok' && e !== 'bonus');
+      const bad = r.specials.includes('ppeok') || r.captured.length === 0;
+      const key: LineKey | undefined = good && Math.random() < CHANCE.praiseMe ? 'praiseMe' : bad && Math.random() < CHANCE.teaseMe ? 'teaseMe' : undefined;
+      if (key) {
+        const pool = [g.observer, ...g.players.map((p) => p.seat)].filter((s) => !s.isHuman);
+        speak(pool[Math.floor(Math.random() * pool.length)]!.id, key, {}, undefined, 700);
+      }
+    }
 
     // 피를 뺏긴 사람 한 명 반응
     const victim = r.stolen.map((x) => x.fromSeatId).find((id) => id !== ME_ID);
@@ -256,13 +295,13 @@ export function useGameController() {
   useEffect(() => {
     if (!game || game.phase === 'end' || game.observer.isHuman) return;
     const id = setInterval(() => {
-      if (Math.random() < 0.5) speak(game.observer.id, 'watch');
-    }, 15000);
+      if (Math.random() < 0.4) speak(game.observer.id, 'watch');
+    }, 18000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game?.observer.id, game?.phase === 'end', speak]);
 
-  return { game, motion, bubbles, deal, reset, humanPlay, humanChoose, humanGoStop, speak };
+  return { game, motion, bubbles, deal, reset, humanPlay, humanChoose, humanGoStop, speak, say };
 }
 
 const ME_ID = 'me';
