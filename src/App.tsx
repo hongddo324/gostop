@@ -1,19 +1,22 @@
 import { useMemo, useState } from 'react';
 import { Background } from './components/Background';
 import { Board } from './components/Board';
+import { CardZoom } from './components/CardZoom';
 import { CharacterSeat } from './components/CharacterSeat';
 import { MyHand } from './components/MyHand';
 import { OpponentHand } from './components/OpponentHand';
 import { StageContainer } from './components/StageContainer';
 import { dealGame } from './game/deal';
+import { demoCapture } from './game/demo';
 import { SEATS, splitSeats } from './game/seats';
-import type { GameState } from './game/types';
+import type { GameState, HwatuCard } from './game/types';
 import { SEAT_LAYOUT } from './config/layout';
 
 export default function App() {
   const [observerId, setObserverId] = useState('uncle');
   const [game, setGame] = useState<GameState | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<{ title: string; cards: HwatuCard[] } | null>(null);
 
   const { players, observer } = useMemo(() => splitSeats(observerId), [observerId]);
 
@@ -63,9 +66,18 @@ export default function App() {
       <Board
         field={game?.field ?? []}
         deckCount={game?.deck.length ?? 0}
-        dealt={game !== null}
+        captures={game?.players.map((p) => ({ position: p.seat.position, name: p.seat.name, cards: p.captured })) ?? []}
+        onInspect={(title, cards) => setZoom({ title, cards })}
         highlightMonth={selectedCard?.month}
       />
+
+      {!game && (
+        <div className="absolute left-[340px] top-[495px] w-[560px] text-center">
+          <span className="rounded-xl bg-black/55 px-5 py-2 text-lg font-bold text-white">
+            ‘패 돌리기’를 눌러 시작하세요
+          </span>
+        </div>
+      )}
 
       <MyHand
         cards={myHand}
@@ -94,6 +106,17 @@ export default function App() {
             ))}
           </select>
         </label>
+        {game && (
+          <button
+            type="button"
+            onClick={() => setGame((g) => g && demoCapture(g, 3))}
+            disabled={game.deck.length === 0}
+            className="rounded-xl bg-black/45 px-3 py-2 text-xs font-bold text-white disabled:opacity-40"
+            title="개발용: 더미에서 임의로 카드를 옮겨 득점 패 배치를 확인"
+          >
+            득점 예시(테스트)
+          </button>
+        )}
         <button
           type="button"
           onClick={handleDeal}
@@ -102,6 +125,8 @@ export default function App() {
           {game ? '다시 돌리기' : '패 돌리기'}
         </button>
       </div>
+
+      {zoom && <CardZoom title={zoom.title} cards={zoom.cards} onClose={() => setZoom(null)} />}
     </StageContainer>
   );
 }

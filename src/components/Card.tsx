@@ -24,7 +24,8 @@ const failedImages = new Set<string>();
 
 interface CardProps {
   card?: HwatuCard;
-  size?: CardSize;
+  /** 프리셋 크기 또는 임의 크기(모포 평면 좌표 등) */
+  size?: CardSize | { w: number; h: number };
   faceDown?: boolean;
   className?: string;
   /** 내 손패에서 선택됨 */
@@ -43,7 +44,7 @@ export function Card({
   highlighted = false,
   onClick,
 }: CardProps) {
-  const dim = SIZE_PX[size];
+  const dim = typeof size === 'string' ? SIZE_PX[size] : { ...SIZE_PX.md, ...size };
   const style = { width: dim.w, height: dim.h };
   const ring = selected
     ? 'ring-4 ring-amber-300 -translate-y-2.5'
@@ -63,12 +64,14 @@ export function Card({
       onClick={onClick}
       title={card.name}
     >
-      <CardFace card={card} size={size} />
+      <CardFace card={card} dim={dim} />
     </div>
   );
 }
 
-function CardFace({ card, size }: { card: HwatuCard; size: CardSize }) {
+type Dim = (typeof SIZE_PX)[CardSize];
+
+function CardFace({ card, dim }: { card: HwatuCard; dim: Dim }) {
   const url = cardImageUrl(card);
   const [failed, setFailed] = useState(() => failedImages.has(url));
 
@@ -86,18 +89,17 @@ function CardFace({ card, size }: { card: HwatuCard; size: CardSize }) {
       />
     );
   }
-  return <CardFallback card={card} size={size} />;
+  return <CardFallback card={card} dim={dim} />;
 }
 
 /** 이미지가 없을 때의 텍스트 카드 */
-function CardFallback({ card, size }: { card: HwatuCard; size: CardSize }) {
-  const dim = SIZE_PX[size];
+function CardFallback({ card, dim }: { card: HwatuCard; dim: Dim }) {
   const typeLabel = shortTypeLabel(card);
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-between overflow-hidden rounded-[6px] border-2 border-card-red bg-card-paper px-0.5 py-1 leading-none text-stone-800">
       <span className={`font-black text-card-red ${dim.month}`}>{card.month}</span>
-      {size !== 'xs' && <span className={`font-bold ${dim.label}`}>{MONTH_NAMES[card.month]}</span>}
+      {dim.w > 32 && <span className={`font-bold ${dim.label}`}>{MONTH_NAMES[card.month]}</span>}
       <span className={`rounded px-1 py-0.5 font-bold ${dim.label} ${TYPE_BADGE[card.type]}`}>{typeLabel}</span>
     </div>
   );

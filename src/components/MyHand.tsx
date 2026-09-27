@@ -2,6 +2,9 @@ import { useState } from 'react';
 import type { HwatuCard } from '../game/types';
 import { Card } from './Card';
 
+/** 트레이 카드 크기 — 오른쪽 아래에 두어 모포 앞쪽(내 득점 패)을 가리지 않는다 */
+const HAND_CARD = { w: 70, h: 105 };
+
 interface Props {
   cards: HwatuCard[];
   selectedId: string | null;
@@ -9,18 +12,19 @@ interface Props {
 }
 
 /**
- * 내 손패 전용 패널 — 1인칭 시점이라 게임 장면과 분리된 하단 트레이로 크게 보여준다.
+ * 내 손패 전용 패널 — 1인칭 시점이라 게임 장면과 분리된 오른쪽 아래 트레이로 크게 보여준다.
+ * (오른손 엄지로 조작하기 쉬운 위치, 모포 왼쪽 앞은 내 득점 패 자리)
  * 접으면 장면(모포) 전체를 볼 수 있다.
  */
 export function MyHand({ cards, selectedId, onSelect }: Props) {
   const [open, setOpen] = useState(true);
   const selected = cards.find((c) => c.id === selectedId);
-  const TRAY_H = 128;
+  const TRAY_H = 118;
 
   return (
     <div
-      className="absolute bottom-0 left-1/2 w-[640px] transition-transform duration-300"
-      style={{ transform: `translate(-50%, ${open ? 0 : TRAY_H}px)` }}
+      className="absolute bottom-0 right-2 w-[570px] transition-transform duration-300"
+      style={{ transform: `translateY(${open ? 0 : TRAY_H}px)` }}
     >
       {/* 탭 */}
       <div className="flex items-end justify-between px-5">
@@ -46,7 +50,7 @@ export function MyHand({ cards, selectedId, onSelect }: Props) {
           <span className="mb-11 text-sm font-semibold text-amber-100/70">패를 돌리면 여기에 내 패가 표시됩니다</span>
         ) : (
           cards.map((c) => (
-            <Card key={c.id} card={c} size="lg" selected={c.id === selectedId} onClick={() => onSelect(c)} />
+            <Card key={c.id} card={c} size={HAND_CARD} selected={c.id === selectedId} onClick={() => onSelect(c)} />
           ))
         )}
       </div>

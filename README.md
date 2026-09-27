@@ -16,7 +16,8 @@ npm run build      # 타입체크 + 프로덕션 빌드 (dist/, base: './' → C
 ```
 src/
   config/stage.ts          논리 해상도 1280×720 (16:9)
-  config/layout.ts         배경 기준 좌표(모포 사다리꼴, 더미, 바닥 12칸, 좌석 이름표/AI 손패)
+  config/layout.ts         모포 사다리꼴 + 모포 평면 좌표(더미·바닥 12칸·좌석별 득점 패 영역), 이름표/AI 손패
+  lib/homography.ts        직사각형→사다리꼴 투영 변환(CSS matrix3d) — 모포 위 카드를 모포 기울기대로 눕힘
   hooks/useStageScale.ts   뷰포트에 맞춘 비율 유지 배율 계산
   game/                    UI 비의존 순수 로직 (추후 AI/룰엔진 확장 지점)
     types.ts               HwatuCard / PlayerSeat / GameState
@@ -27,9 +28,10 @@ src/
     StageContainer.tsx     고정 해상도 스테이지 + transform scale + 레터박스
     Background.tsx         거실 배경 (이미지 없으면 그라데이션)
     CharacterSeat.tsx      좌석 이름표/역할 뱃지 (캐릭터는 배경 일러스트)
-    Board.tsx              모포 위 더미 / 바닥 패 12칸(같은 월 겹침)
+    Board.tsx              모포 평면(matrix3d): 더미 / 바닥 패 12칸 / 각자 앞 득점 패(광·열끗·띠·피)
+    CardZoom.tsx           모포 위 카드 탭 시 확대 보기
     OpponentHand.tsx       AI 손패 — 인물이 쥔 부채꼴 뒷면, 인물 방향별 3D 원근(perspective/rotateX·Y·Z)
-    MyHand.tsx             내 손패 전용 하단 트레이(접기/펼치기, 선택 시 같은 월 바닥 패 강조)
+    MyHand.tsx             내 손패 전용 우하단 트레이(접기/펼치기, 선택 시 같은 월 바닥 패 강조)
     Card.tsx               카드 (이미지 → 실패 시 텍스트 카드 fallback)
 ```
 
