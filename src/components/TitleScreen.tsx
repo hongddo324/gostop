@@ -1,10 +1,7 @@
 import { useState } from 'react';
-import { CHARACTER_PLACEMENT, EXIT_DX } from '../config/layout';
 import { formatWon } from '../game/money';
-import { SEATS } from '../game/seats';
 import { exitApp } from '../lib/exitApp';
 import { Background } from './Background';
-import { CharacterSprite } from './CharacterSprite';
 
 interface Props {
   myMoney: number;
@@ -12,20 +9,13 @@ interface Props {
   onSettings: () => void;
 }
 
-/** 첫 화면: 거실 배경 + 쉬고 있는 가족 + 게임 시작 / 설정 / 게임 종료 */
+/** 첫 화면: 거실 배경 + 게임 시작 / 설정 / 게임 종료 (캐릭터 없음) */
 export function TitleScreen({ myMoney, onStart, onSettings }: Props) {
   const [exitMsg, setExitMsg] = useState(false);
 
   return (
     <div className="absolute inset-0">
       <Background />
-      {SEATS.map((seat) => {
-        const place = CHARACTER_PLACEMENT[seat.position];
-        if (!place) return null;
-        return (
-          <CharacterSprite key={seat.id} seatId={seat.id} pose="rest" frameMs={150} exitDx={EXIT_DX[seat.position]} {...place} />
-        );
-      })}
 
       {/* 살짝 어둡게 + 가운데 메뉴 */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/25 to-black/55" />

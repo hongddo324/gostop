@@ -43,7 +43,7 @@ src/
   hooks/useGameController.ts  엔진 단계를 타이머로 이어 AI 차례·뒤집기·먹기 자동 진행, 모션/대사
   components/
     StageContainer.tsx     고정 해상도 스테이지 + transform scale + 레터박스
-    TitleScreen.tsx        첫 화면: 거실 + 쉬는 가족 + 게임 시작 / 설정 / 게임 종료
+    TitleScreen.tsx        첫 화면: 거실 배경 + 게임 시작 / 설정 / 게임 종료
     Background.tsx         거실 배경 (이미지 없으면 그라데이션)
     CharacterSeat.tsx      좌석 이름표/역할 뱃지
     Board.tsx              모포 평면(matrix3d): 더미 / 바닥 패 12칸 / 좌석별 득점 영역(가이드선) — 피 포함 모두 펼쳐 놓기, 넘치면 절반 비켜 다음 줄
