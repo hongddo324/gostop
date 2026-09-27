@@ -20,9 +20,9 @@ import type { HwatuCard, Month } from '../game/types';
 export type Difficulty = 'beginner' | 'intermediate' | 'expert';
 
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
-  beginner: '초급 · 동네 초보',
-  intermediate: '중급 · 일반 플레이어',
-  expert: '고급 · 타짜',
+  beginner: '초급',
+  intermediate: '중급',
+  expert: '고급·타짜',
 };
 
 export interface OpponentState {

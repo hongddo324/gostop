@@ -10,7 +10,7 @@ import {
 import type { ChatMessage } from '../components/KakaoChat';
 import { line, type LineKey } from '../content/dialogue';
 import { aiDecideGo, aiPickCard, aiPickTarget } from '../logic/aiPlayer';
-import type { Settings } from '../settings';
+import { difficultyOf, type Settings } from '../settings';
 import { dealGame } from '../game/deal';
 import { choose, currentPlayer, declareGoStop, flipCard, playCard, resolveTurn } from '../game/engine';
 import { pickGwangSeller, splitSeats } from '../game/seats';
@@ -238,7 +238,7 @@ export function useGameController(settings: Settings) {
           // 모션 시작 → '탁' 내려치는 프레임에 맞춰 카드가 손을 떠난다
           t = setTimeout(() => {
             // 모션을 시작하기 전에 결정 (타짜는 시뮬레이션 계산이 있어 모션 중에 하면 끊겨 보인다)
-            const card = aiPickCard(game, cfg.current.difficulty);
+            const card = aiPickCard(game, difficultyOf(cfg.current, me.seat.id));
             setPose(me.seat.id, 'play', playTotalMs(tm.playFrame) + 150);
             if (Math.random() < CHANCE.play) speak(me.seat.id, 'play');
             later(playReleaseMs(tm.playFrame), () => setGame((g) => (g === game ? playCard(g, card.id) : g)));
@@ -247,7 +247,7 @@ export function useGameController(settings: Settings) {
         break;
       case 'choose':
         if (ai)
-          step(T().aiChoose, (g) => choose(g, aiPickTarget(g, cfg.current.difficulty).id));
+          step(T().aiChoose, (g) => choose(g, aiPickTarget(g, difficultyOf(cfg.current, me.seat.id)).id));
         break;
       case 'flip':
         step(T().beforeFlip, flipCard);
@@ -260,7 +260,7 @@ export function useGameController(settings: Settings) {
           t = setTimeout(() => {
             const g = gameRef.current;
             if (g !== game) return;
-            const go = aiDecideGo(g, cfg.current.difficulty);
+            const go = aiDecideGo(g, difficultyOf(cfg.current, me.seat.id));
             speak(me.seat.id, go ? 'go' : 'stop', {}, go ? '고!' : '스톱!');
             if (go) reactToGo(g, me.seat.id);
             setGame(declareGoStop(g, go));

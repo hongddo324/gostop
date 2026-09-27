@@ -19,7 +19,7 @@ import { exitApp, onBackButton } from './lib/exitApp';
 import { visibleContext } from './logic/aiContext';
 import { getHintExplanation, type HintExplanation } from './logic/hintEngine';
 import { settleMoney, type MoneySettlement } from './game/money';
-import { useSettings } from './settings';
+import { difficultyOf, useSettings } from './settings';
 import { useWallets } from './wallet';
 import { currentPlayer } from './game/engine';
 import { scoreOf } from './game/scoring';
@@ -222,7 +222,7 @@ export default function App() {
               key={seat.id}
               seat={seat}
               isObserver={isObserver}
-              difficulty={settings.difficulty}
+              difficulty={difficultyOf(settings, seat.id)}
               isTurn={current?.seat.id === seat.id}
               handCount={p?.hand.length}
               score={p ? scoreOf(p.captured).total : undefined}

@@ -5,8 +5,8 @@ export const SPEEDS = [1, 1.5, 2, 3] as const;
 export type Speed = (typeof SPEEDS)[number];
 
 export interface Settings {
-  /** 상대 AI 난이도 */
-  difficulty: Difficulty;
+  /** 상대별 AI 난이도 (좌석 id → 난이도) */
+  difficulties: Record<string, Difficulty>;
   /** 게임 배속 (1배속 = 기본, 가족끼리 치듯 느긋하게) */
   speed: Speed;
   /** 훈수 모드: 광 판 사람이 빈자리에서 카톡으로 훈수 + '훈수 듣기' 버튼·상세 설명. 끄면 훈수는 말이 없다 */
@@ -15,14 +15,25 @@ export interface Settings {
   autoHint: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { difficulty: 'intermediate', speed: 1, helpMode: true, autoHint: true };
+const AI_SEATS = ['grandma', 'uncle', 'father-in-law'] as const;
+const allAt = (d: Difficulty) => Object.fromEntries(AI_SEATS.map((id) => [id, d])) as Record<string, Difficulty>;
+
+export const DEFAULT_SETTINGS: Settings = { difficulties: allAt('intermediate'), speed: 1, helpMode: true, autoHint: true };
+
+/** 좌석의 난이도 (설정에 없으면 중급) */
+export const difficultyOf = (s: Settings, seatId: string): Difficulty => s.difficulties[seatId] ?? 'intermediate';
 
 const KEY = 'gostop.settings.v1';
 
-function load(): Settings {
+export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) } : DEFAULT_SETTINGS;
+    if (!raw) return DEFAULT_SETTINGS;
+    // 이전 버전(전체 공통 difficulty 하나)에서 올라온 설정은 모든 상대에게 같은 난이도로 옮긴다
+    const saved = JSON.parse(raw) as Partial<Settings> & { difficulty?: Difficulty };
+    const difficulties = { ...(saved.difficulty ? allAt(saved.difficulty) : DEFAULT_SETTINGS.difficulties), ...saved.difficulties };
+    delete saved.difficulty;
+    return { ...DEFAULT_SETTINGS, ...saved, difficulties };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -30,7 +41,7 @@ function load(): Settings {
 
 /** 설정 상태 + localStorage 저장 (저장 실패해도 동작에는 영향 없음) */
 export function useSettings() {
-  const [settings, setSettings] = useState<Settings>(load);
+  const [settings, setSettings] = useState<Settings>(loadSettings);
   const update = useCallback((patch: Partial<Settings>) => {
     setSettings((s) => {
       const next = { ...s, ...patch };

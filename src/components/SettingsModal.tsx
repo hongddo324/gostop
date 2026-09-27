@@ -2,7 +2,14 @@ import { useState } from 'react';
 import { formatWon, type Wallets } from '../game/money';
 import { SEATS } from '../game/seats';
 import { DIFFICULTY_LABEL, type Difficulty } from '../logic/aiEngine';
-import { SPEEDS, type Settings } from '../settings';
+import { difficultyOf, SPEEDS, type Settings } from '../settings';
+
+const LEVELS: Difficulty[] = ['beginner', 'intermediate', 'expert'];
+const LEVEL_ON: Record<Difficulty, string> = {
+  beginner: 'border-emerald-400 bg-emerald-600/80',
+  intermediate: 'border-sky-400 bg-sky-600/80',
+  expert: 'border-rose-400 bg-rose-600/80',
+};
 
 interface Props {
   settings: Settings;
@@ -37,21 +44,53 @@ export function SettingsModal({ settings, onChange, onClose, onResetMoney, walle
           </button>
         </div>
 
-        <Section title="상대 난이도">
-          <div className="grid grid-cols-3 gap-2">
-            {(Object.keys(DIFFICULTY_LABEL) as Difficulty[]).map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => onChange({ difficulty: d })}
-                className={`rounded-xl border-2 px-2 py-2 text-left ${
-                  settings.difficulty === d ? 'border-amber-400 bg-amber-500/25' : 'border-white/15 bg-black/20'
-                }`}
-              >
-                <div className="text-sm font-black">{DIFFICULTY_LABEL[d]}</div>
-                <div className="mt-0.5 text-[11px] leading-tight opacity-75">{DIFF_DESC[d]}</div>
-              </button>
+        <Section title="상대 난이도 (사람마다 따로)">
+          <div className="space-y-1.5">
+            {SEATS.filter((s) => !s.isHuman).map((seat) => (
+              <div key={seat.id} className="flex items-center gap-2">
+                <span className="w-[72px] shrink-0 text-sm font-bold">{seat.name}</span>
+                <div className="grid flex-1 grid-cols-3 gap-1.5">
+                  {LEVELS.map((d) => {
+                    const on = difficultyOf(settings, seat.id) === d;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        title={DIFF_DESC[d]}
+                        onClick={() => onChange({ difficulties: { ...settings.difficulties, [seat.id]: d } })}
+                        className={`rounded-lg border-2 py-1.5 text-sm font-black ${
+                          on ? `${LEVEL_ON[d]} text-white` : 'border-white/15 bg-black/20 text-amber-50/70'
+                        }`}
+                      >
+                        {DIFFICULTY_LABEL[d]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             ))}
+            <div className="flex items-center gap-2 pt-0.5">
+              <span className="w-[72px] shrink-0 text-xs opacity-70">한꺼번에</span>
+              <div className="grid flex-1 grid-cols-3 gap-1.5">
+                {LEVELS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() =>
+                      onChange({
+                        difficulties: Object.fromEntries(SEATS.filter((s) => !s.isHuman).map((s) => [s.id, d])),
+                      })
+                    }
+                    className="rounded-lg bg-black/25 py-1 text-[11px] font-bold opacity-80"
+                  >
+                    모두 {DIFFICULTY_LABEL[d]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="text-[11px] leading-snug opacity-60">
+              초급: {DIFF_DESC.beginner} · 중급: {DIFF_DESC.intermediate} · 타짜: {DIFF_DESC.expert}
+            </div>
           </div>
         </Section>
 
