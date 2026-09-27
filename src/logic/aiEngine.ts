@@ -96,6 +96,8 @@ export interface MoveEvaluation {
     piBefore: number;
     piAfter: number;
     ppeokProb: number;
+    /** 아직 안 보인(더미·상대 손패) 같은 월 장수 */
+    sameUnseen: number;
   };
 }
 
@@ -173,7 +175,7 @@ export function evaluateMoves(
           riskPenalty: 0,
           safetyScore: 0,
           total: 200,
-          notes: { scoreDelta: scoreOf([...myCaptured, card]).total - scoreBefore, piBefore, piAfter, ppeokProb: 0 },
+          notes: { scoreDelta: scoreOf([...myCaptured, card]).total - scoreBefore, piBefore, piAfter, ppeokProb: 0, sameUnseen: 0 },
         };
       }
 
@@ -237,7 +239,7 @@ export function evaluateMoves(
         riskPenalty,
         safetyScore,
         total,
-        notes: { scoreDelta, completesCombo: combo.completes, blocks, feeds, piBefore, piAfter, ppeokProb: flipProb },
+        notes: { scoreDelta, completesCombo: combo.completes, blocks, feeds, piBefore, piAfter, ppeokProb: flipProb, sameUnseen },
       };
     })
     .sort((a, b) => b.total - a.total);

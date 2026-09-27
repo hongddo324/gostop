@@ -35,6 +35,24 @@ export default function App() {
   const observer = game?.observer;
   const [showSettings, setShowSettings] = useState(false);
   const [hint, setHint] = useState<HintExplanation | null>(null);
+  // 훈수방 접기/펼치기 (기기에 기억) + 접힌 동안 온 새 메시지 수
+  const [chatCollapsed, setChatCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('gostop.chatCollapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [chatSeenSeq, setChatSeenSeq] = useState(0);
+  const toggleChat = () =>
+    setChatCollapsed((v) => {
+      try {
+        localStorage.setItem('gostop.chatCollapsed', v ? '0' : '1');
+      } catch {
+        /* 저장 불가 무시 */
+      }
+      return !v;
+    });
   const { wallets, setWallets, reset: resetWallets } = useWallets();
   const [money, setMoney] = useState<{ game: object; result: MoneySettlement } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -170,7 +188,17 @@ export default function App() {
 
         {/* 광 판 사람의 빈자리 — 카톡 스타일 훈수 채팅 (훈수 모드일 때만) */}
         {observer && observerGone && settings.helpMode && CHAT_POS[observer.position] && (
-          <KakaoChat seat={observer} messages={chat} {...CHAT_POS[observer.position]!} />
+          <KakaoChat
+            seat={observer}
+            messages={chat}
+            {...CHAT_POS[observer.position]!}
+            collapsed={chatCollapsed}
+            unread={chat.filter((m) => m.seq > chatSeenSeq).length}
+            onToggle={() => {
+              setChatSeenSeq(chat[chat.length - 1]?.seq ?? 0);
+              toggleChat();
+            }}
+          />
         )}
 
         {/* 내 말풍선 (쪽!/고! 등) — 화면 아래 가운데 */}

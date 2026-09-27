@@ -86,6 +86,33 @@ describe('getHintExplanation — 상황별 훈수', () => {
   });
 });
 
+describe('훈수 상세 근거', () => {
+  it('견제 추천: 왜 유리한지 근거 + 차선책과의 비교가 나온다', () => {
+    const hint = getHintExplanation({
+      hand: cs('08-pi-1', '01-gwang'),
+      field: cs('08-yeol', '01-pi-1'),
+      opponents: [opp('이모부님', cs('02-yeol', '04-yeol'))],
+      deckRemainingCount: 15,
+    });
+    expect(hint.reasons.some((r) => r.includes('완성이 영영 막힙니다'))).toBe(true);
+    expect(hint.reasons.some((r) => r.includes('뻑이 날'))).toBe(true);
+    expect(hint.alternatives[0]).toMatchObject({ cardName: '1월 송학 광' });
+    expect(hint.alternatives[0]!.why).toBe('상대 고도리를 막지 못합니다');
+    expect(hint.alternatives[0]!.gap).toBeGreaterThan(0);
+  });
+
+  it('버림패 추천: 짝이 없다는 이유와 가치 비교', () => {
+    const hint = getHintExplanation({
+      hand: cs('01-gwang', '07-pi-1', '03-tti'),
+      field: cs('05-pi-1', '09-pi-1'),
+      opponents: [opp('장인어른', [])],
+      deckRemainingCount: 15,
+    });
+    expect(hint.reasons.join(' ')).toContain('바닥에 짝이 없어');
+    expect(hint.alternatives.map((a) => a.why).join(' ')).toContain('버리기엔 아까운 패');
+  });
+});
+
 describe('evaluateAiMove — 난이도별', () => {
   const hand = cs('08-pi-1', '01-gwang', '07-pi-2');
   const field = cs('08-yeol', '01-pi-1');

@@ -42,23 +42,40 @@ interface Props {
   x: number;
   y: number;
   w: number;
+  /** 접힘 상태 — 머리줄만 보이고 새 메시지 수를 표시 */
+  collapsed: boolean;
+  unread: number;
+  onToggle: () => void;
 }
 
 /**
  * 광 팔고 나간 사람의 빈자리에 뜨는 카카오톡 스타일 훈수 채팅.
  * 최근 메시지 몇 개만 보여주고, 새 메시지는 아래에서 톡 올라온다.
  */
-export function KakaoChat({ seat, messages, x, y, w }: Props) {
+export function KakaoChat({ seat, messages, x, y, w, collapsed, unread, onToggle }: Props) {
   const recent = messages.slice(-3);
   return (
     <div
-      className="pointer-events-none absolute z-40 overflow-hidden rounded-2xl border border-white/40 bg-[#b2c7da]/92 shadow-xl"
+      className={`pointer-events-none absolute z-40 overflow-hidden border border-white/40 bg-[#b2c7da]/92 shadow-xl ${collapsed ? 'rounded-full' : 'rounded-2xl'}`}
       style={{ left: x, top: y, width: w }}
     >
-      <div className="flex items-center justify-between bg-[#a3b8cc] px-3 py-1 text-[11px] font-bold text-[#3c4b5a]">
-        <span>💬 {seat.name}의 훈수방</span>
-        <span className="rounded-full bg-[#fee500] px-1.5 text-[10px] text-[#3c1e1e]">광 팔고 구경 중</span>
-      </div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="pointer-events-auto flex w-full items-center justify-between gap-2 bg-[#a3b8cc] px-3 py-1 text-[11px] font-bold text-[#3c4b5a]"
+      >
+        <span className="flex items-center gap-1">
+          💬 {seat.name}의 훈수방
+          {collapsed && unread > 0 && (
+            <span className="rounded-full bg-rose-500 px-1.5 text-[10px] text-white">{unread}</span>
+          )}
+        </span>
+        <span className="flex items-center gap-1.5">
+          {!collapsed && <span className="rounded-full bg-[#fee500] px-1.5 text-[10px] text-[#3c1e1e]">광 팔고 구경 중</span>}
+          <span className="rounded bg-white/50 px-1.5">{collapsed ? '펼치기 ▼' : '접기 ▲'}</span>
+        </span>
+      </button>
+      {!collapsed && (
       <div className="flex flex-col gap-1.5 px-2.5 py-2">
         {recent.length === 0 && (
           <div className="mx-auto rounded-full bg-black/10 px-3 py-0.5 text-[11px] text-[#3c4b5a]">
@@ -83,6 +100,7 @@ export function KakaoChat({ seat, messages, x, y, w }: Props) {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

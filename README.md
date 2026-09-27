@@ -37,8 +37,8 @@ src/
     aiContext.ts           게임 상태에서 '볼 수 있는 정보'만 추출 (상대 손패·더미 순서 제외)
   settings.ts              난이도 / 배속(1~3배) / 도움 모드 — localStorage 저장
   wallet.ts                좌석별 돈 — localStorage 저장, 설정의 '돈 초기화' 전까지 유지
-  content/dialogue.ts      캐릭터별 대사 — 모두 나에게 반말 (외할머니 '손주사위' 충청도 / 이모부님 '홍서' / 장인어른 '사위')
-  content/hintVoice.ts     훈수 설명을 훈수 두는 사람 말투로 변환
+  content/dialogue.ts      캐릭터별 대사 — 모두 나에게 반말 (외할머니 '손주사위' 충청도 / 이모부님 '홍서야' / 장인어른 '사위')
+  content/hintVoice.ts     채팅방 훈수 한 줄(무엇을 하라는지)을 훈수 두는 사람 말투로
   hooks/useGameController.ts  엔진 단계를 타이머로 이어 AI 차례·뒤집기·먹기 자동 진행, 모션/대사
   components/
     StageContainer.tsx     고정 해상도 스테이지 + transform scale + 레터박스
@@ -48,8 +48,8 @@ src/
     CardZoom.tsx           모포 위 카드 탭 시 확대 보기
     Modals.tsx             먹을 패 선택 / 고·스톱 / 판 결과
     SettingsModal.tsx      우상단 ⚙ 설정
-    HintPanel.tsx          도움 모드 상세 훈수 패널
-    KakaoChat.tsx          광 판 사람 빈자리의 카톡 스타일 훈수 채팅 (프로필 사진 + 말풍선 + 시각)
+    HintPanel.tsx          훈수 듣기 상세 패널 — 왜 유리한가(근거) · 다른 선택과 비교 · 평가 점수
+    KakaoChat.tsx          광 판 사람 빈자리의 카톡 스타일 훈수 채팅 (접기/펼치기, 접힌 동안 새 메시지 수)
     MoneyStack.tsx         가진 돈을 지폐 묶음(오만원·만원·오천원·천원)으로 표시
     CharacterSprite.tsx    배경과 분리된 캐릭터 스프라이트 + 모션(idle / rest 쉬는 대기 / play 8프레임 '탁' / cheer / sad 아쉬움 / leave 나가기 / enter 들어오기 / gone)
     MyHand.tsx             장면 아래 내 손패 전용 패널 (탭=선택·같은 월 강조, 한 번 더 탭/‘내기’=내기)
