@@ -65,3 +65,11 @@ describe('dealGame', () => {
     expect(state.players.map((p) => p.seat.id)).not.toContain('uncle');
   });
 });
+
+describe('카드 이미지 에셋', () => {
+  it('48장 모두 public/assets/cards/{id}.webp 가 존재', async () => {
+    const { existsSync } = await import('node:fs');
+    const missing = createDeck().filter((c) => !existsSync(`public/assets/cards/${c.id}.webp`));
+    expect(missing.map((c) => c.id)).toEqual([]);
+  });
+});

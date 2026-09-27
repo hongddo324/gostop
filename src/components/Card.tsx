@@ -4,12 +4,12 @@ import type { CardType, HwatuCard } from '../game/types';
 
 export type CardSize = 'xs' | 'sm' | 'md' | 'lg';
 
-/** 화투 실물 비율 ≈ 2:3.2 */
-const SIZE_PX: Record<CardSize, { w: number; h: number; month: string; label: string }> = {
-  xs: { w: 30, h: 48, month: 'text-sm', label: 'text-[8px]' },
-  sm: { w: 44, h: 70, month: 'text-lg', label: 'text-[9px]' },
-  md: { w: 56, h: 90, month: 'text-2xl', label: 'text-[10px]' },
-  lg: { w: 70, h: 112, month: 'text-3xl', label: 'text-xs' },
+/** 카드 이미지(스프라이트) 비율 2:3 기준 */
+export const SIZE_PX: Record<CardSize, { w: number; h: number; month: string; label: string }> = {
+  xs: { w: 28, h: 42, month: 'text-sm', label: 'text-[8px]' },
+  sm: { w: 40, h: 60, month: 'text-lg', label: 'text-[9px]' },
+  md: { w: 54, h: 81, month: 'text-2xl', label: 'text-[10px]' },
+  lg: { w: 72, h: 108, month: 'text-3xl', label: 'text-xs' },
 };
 
 const TYPE_BADGE: Record<CardType, string> = {
@@ -27,13 +27,30 @@ interface CardProps {
   size?: CardSize;
   faceDown?: boolean;
   className?: string;
+  /** 내 손패에서 선택됨 */
+  selected?: boolean;
+  /** 선택한 카드와 같은 월 (먹을 수 있는 바닥 패) */
+  highlighted?: boolean;
   onClick?: () => void;
 }
 
-export function Card({ card, size = 'md', faceDown = false, className = '', onClick }: CardProps) {
+export function Card({
+  card,
+  size = 'md',
+  faceDown = false,
+  className = '',
+  selected = false,
+  highlighted = false,
+  onClick,
+}: CardProps) {
   const dim = SIZE_PX[size];
   const style = { width: dim.w, height: dim.h };
-  const base = `relative shrink-0 rounded-[6px] shadow-[0_2px_4px_rgba(0,0,0,0.45)] ${className}`;
+  const ring = selected
+    ? 'ring-4 ring-amber-300 -translate-y-2.5'
+    : highlighted
+      ? 'ring-4 ring-amber-300 animate-pulse'
+      : '';
+  const base = `relative shrink-0 rounded-[5px] shadow-[0_2px_4px_rgba(0,0,0,0.45)] transition-transform ${ring} ${className}`;
 
   if (faceDown || !card) {
     return <CardBack style={style} className={base} />;
@@ -42,7 +59,7 @@ export function Card({ card, size = 'md', faceDown = false, className = '', onCl
   return (
     <div
       style={style}
-      className={`${base} ${onClick ? 'cursor-pointer transition-transform hover:-translate-y-2' : ''}`}
+      className={`${base} ${onClick && !selected ? 'cursor-pointer hover:-translate-y-2' : ''}`}
       onClick={onClick}
       title={card.name}
     >
@@ -61,7 +78,7 @@ function CardFace({ card, size }: { card: HwatuCard; size: CardSize }) {
         src={url}
         alt={card.name}
         draggable={false}
-        className="h-full w-full rounded-[6px] object-cover"
+        className="h-full w-full rounded-[5px] object-cover"
         onError={() => {
           failedImages.add(url);
           setFailed(true);

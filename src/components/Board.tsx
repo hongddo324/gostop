@@ -6,6 +6,8 @@ interface Props {
   field: HwatuCard[];
   deckCount: number;
   dealt: boolean;
+  /** 내가 선택한 카드의 월 — 같은 월 바닥 패를 강조 */
+  highlightMonth?: Month;
 }
 
 /** 같은 월끼리 한 자리에 겹쳐 놓는다 (실제 바닥 패 배치 방식) */
@@ -20,14 +22,14 @@ function groupByMonth(cards: HwatuCard[]): HwatuCard[][] {
 }
 
 /** 배경 모포 위에 얹히는 더미(Deck) + 바닥 패(Field) */
-export function Board({ field, deckCount, dealt }: Props) {
+export function Board({ field, deckCount, dealt, highlightMonth }: Props) {
   const groups = groupByMonth(field);
 
   return (
     <>
       {/* Deck */}
       <div className="absolute flex flex-col items-center" style={{ left: DECK_POS.x, top: DECK_POS.y }}>
-        <div className="relative h-[90px] w-[56px]">
+        <div className="relative h-[81px] w-[54px]">
           {Array.from({ length: Math.min(deckCount, 5) }, (_, i) => (
             // 두께감 표현용으로 최대 5장만 겹쳐 그린다
             <div key={i} className="absolute" style={{ left: -i * 1.5, top: -i * 1.5 }}>
@@ -50,7 +52,7 @@ export function Board({ field, deckCount, dealt }: Props) {
           <div key={group[0]!.month} className="absolute" style={{ left: pos.x, top: pos.y }}>
             {group.map((c, i) => (
               <div key={c.id} className="absolute" style={{ left: i * 8, top: i * 4 }}>
-                <Card card={c} size="md" />
+                <Card card={c} size="md" highlighted={c.month === highlightMonth} />
               </div>
             ))}
           </div>

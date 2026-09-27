@@ -28,8 +28,8 @@ src/
     Background.tsx         거실 배경 (이미지 없으면 그라데이션)
     CharacterSeat.tsx      좌석 이름표/역할 뱃지 (캐릭터는 배경 일러스트)
     Board.tsx              모포 위 더미 / 바닥 패 12칸(같은 월 겹침)
-    OpponentHand.tsx       AI 손패(뒷면)
-    MyHand.tsx             내 손패
+    OpponentHand.tsx       AI 손패 — 인물이 쥔 부채꼴 뒷면, 인물 방향별 3D 원근(perspective/rotateX·Y·Z)
+    MyHand.tsx             내 손패 전용 하단 트레이(접기/펼치기, 선택 시 같은 월 바닥 패 강조)
     Card.tsx               카드 (이미지 → 실패 시 텍스트 카드 fallback)
 ```
 
@@ -38,7 +38,8 @@ src/
 | 용도 | 경로 |
 | --- | --- |
 | 배경 | `public/assets/bg_livingroom.webp` (1672×941, 16:9 — 캐릭터 3인·모포 포함) |
-| 카드 앞면 | `public/assets/cards/{cardId}.png` (예: `01-gwang.png`, `03-tti.png`, `11-pi-1.png`) |
+| 카드 앞면 | `public/assets/cards/{cardId}.webp` (예: `01-gwang.webp`, `03-tti.webp`, `11-pi-1.webp`) |
+| 카드 원본 시트 | `assets-src/hwatu_sprite.jpg` (8열×6행) → `python3 scripts/slice_cards.py` 로 48장 생성 |
 
 카드 ID 형식: `{월 2자리}-{gwang|yeol|tti|pi}[-{피 순번}]`. 파일이 없으면 자동으로 텍스트 카드로 표시된다.
 

@@ -13,18 +13,25 @@ import { SEAT_LAYOUT } from './config/layout';
 export default function App() {
   const [observerId, setObserverId] = useState('uncle');
   const [game, setGame] = useState<GameState | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { players, observer } = useMemo(() => splitSeats(observerId), [observerId]);
 
-  const handleDeal = () => setGame(dealGame(players, observer));
+  const handleDeal = () => {
+    setGame(dealGame(players, observer));
+    setSelectedId(null);
+  };
 
   const handleObserverChange = (id: string) => {
     setObserverId(id);
     setGame(null); // 좌석 구성이 바뀌면 판을 초기화
+    setSelectedId(null);
   };
 
   const handOf = (seatId: string) => game?.players.find((p) => p.seat.id === seatId)?.hand ?? [];
   const me = SEATS.find((s) => s.isHuman)!;
+  const myHand = handOf(me.id);
+  const selectedCard = myHand.find((c) => c.id === selectedId);
 
   return (
     <StageContainer>
@@ -38,22 +45,33 @@ export default function App() {
         return (
           <div key={seat.id}>
             {!seat.isHuman && !isObserver && layout.hand && (
-              <OpponentHand cards={hand} x={layout.hand.x} y={layout.hand.y} />
+              <OpponentHand cards={hand} pose={layout.hand} />
             )}
-            <CharacterSeat
-              seat={seat}
-              isObserver={isObserver}
-              handCount={game ? hand.length : undefined}
-              x={layout.nameTag.x}
-              y={layout.nameTag.y}
-            />
+            {layout.nameTag && (
+              <CharacterSeat
+                seat={seat}
+                isObserver={isObserver}
+                handCount={game ? hand.length : undefined}
+                x={layout.nameTag.x}
+                y={layout.nameTag.y}
+              />
+            )}
           </div>
         );
       })}
 
-      <Board field={game?.field ?? []} deckCount={game?.deck.length ?? 0} dealt={game !== null} />
+      <Board
+        field={game?.field ?? []}
+        deckCount={game?.deck.length ?? 0}
+        dealt={game !== null}
+        highlightMonth={selectedCard?.month}
+      />
 
-      <MyHand cards={handOf(me.id)} />
+      <MyHand
+        cards={myHand}
+        selectedId={selectedId}
+        onSelect={(c) => setSelectedId((prev) => (prev === c.id ? null : c.id))}
+      />
 
       {/* HUD */}
       <div className="absolute left-4 top-3 rounded-xl bg-black/45 px-3 py-1.5 text-white">

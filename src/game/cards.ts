@@ -93,7 +93,7 @@ export function createDeck(): HwatuCard[] {
   return cards;
 }
 
-/** 카드 이미지 경로 규칙: public/assets/cards/{id}.png */
+/** 카드 이미지 경로 규칙: public/assets/cards/{id}.webp */
 export function cardImageUrl(card: HwatuCard): string {
-  return `${import.meta.env.BASE_URL}assets/cards/${card.id}.png`;
+  return `${import.meta.env.BASE_URL}assets/cards/${card.id}.webp`;
 }
