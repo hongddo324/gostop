@@ -36,12 +36,9 @@ export const MAT_CARD = { w: 42, h: 63 } as const;
 export const PILE_CARD = { w: 30, h: 45 } as const;
 /** 득점 패 겹침 간격(쌓는 방향 기준): 최소 카드 짧은 변의 약 55% 는 보이게 */
 export const PILE_STEP = { min: 17, max: 23 } as const;
-/** 피는 5장씩 한 묶음으로 쌓고 묶음끼리 간격을 둔다 */
-export const PI_STACK = { size: 5, inner: 2, gap: 24 } as const;
-
 /** 더미 — 모포 중앙 */
 const CENTER_X = 380;
-const CENTER_Y = 200;
+const CENTER_Y = 218;
 export const DECK_POS = { x: CENTER_X - MAT_CARD.w / 2, y: CENTER_Y - MAT_CARD.h / 2 };
 
 /**
@@ -49,7 +46,7 @@ export const DECK_POS = { x: CENTER_X - MAT_CARD.w / 2, y: CENTER_Y - MAT_CARD.h
  * 배열 순서 = 새 월이 놓이는 순서. 더미에 가까운 칸부터 바깥쪽으로 채운다.
  */
 const COL = [272, 330, 430, 488];
-const ROW = [122, 200, 278];
+const ROW = [150, 218, 286];
 export const FIELD_SLOTS: readonly { x: number; y: number }[] = [
   [1, 1], [2, 1], [1, 0], [2, 0], [1, 2], [2, 2],
   [0, 1], [3, 1], [0, 0], [3, 0], [0, 2], [3, 2],
@@ -59,10 +56,9 @@ export const FIELD_SLOTS: readonly { x: number; y: number }[] = [
  * 득점(먹은) 패 영역 — 각자 자기 바로 앞. 좌석마다 블록(가이드선 박스) 안에 종류별 그룹.
  *  - { x, y, w, h } : 그룹 영역(카드가 '보이는' 모양 기준 — 90° 회전이면 가로로 누운 카드)
  *  - axis           : 쌓는 방향. 'x' = 옆으로, 'y' = 아래로
+ * 모든 종류(피 포함)를 펼쳐 놓고, 넘치면 다음 줄을 카드 절반만큼 비켜 놓는다.
  *
- * 외할머니·장인어른 무릎이 모포 양옆(평면 x<≈100, x>≈690)을 덮으므로 그 바로 안쪽에 두고,
- * 카드를 90° 돌려 본인 쪽을 향하게 눕혀 2×2 그룹으로 아래로 쌓는다.
- *   ┌────────── 이모부님 한 줄 ──────────┐
+ *   ┌──────────── 이모부님 (넓게) ────────────┐
  *   │ 외할머니 │   바닥 패 · 더미   │ 장인어른 │
  *   └──────────── 나 한 줄 ─────────────┘
  */
@@ -71,25 +67,19 @@ export type CaptureLayout = Record<CardType, PileRect>;
 export type ZoneBlock = { x: number; y: number; w: number; h: number };
 
 export const ZONE_BLOCK: Record<SeatPosition, ZoneBlock> = {
-  top: { x: 116, y: 1, w: 528, h: 76 },
-  left: { x: 96, y: 94, w: 140, h: 232 },
-  right: { x: 524, y: 94, w: 140, h: 232 },
-  bottom: { x: 58, y: 328, w: 644, h: 64 },
+  top: { x: 96, y: 1, w: 568, h: 112 },
+  left: { x: 96, y: 118, w: 140, h: 206 },
+  right: { x: 524, y: 118, w: 140, h: 206 },
+  bottom: { x: 58, y: 328, w: 644, h: 68 },
 };
 
-/** 좌우 좌석: 누운 카드(가로 45 × 세로 30) 2×2 그룹, 아래로 쌓기 */
-const sideZone = (b: ZoneBlock): CaptureLayout => {
-  const colA = b.x + 12;
-  const colB = b.x + 80;
-  const rowTop = b.y + 8;
-  const rowBottom = b.y + 120;
-  return {
-    gwang: { x: colA, y: rowTop, w: 48, h: 104, axis: 'y' },
-    yeol: { x: colB, y: rowTop, w: 48, h: 104, axis: 'y' },
-    tti: { x: colA, y: rowBottom, w: 48, h: 104, axis: 'y' },
-    pi: { x: colB, y: rowBottom, w: 48, h: 104, axis: 'y' },
-  };
-};
+/** 좌우 좌석: 누운 카드 — 광·열끗·띠는 왼쪽 열에 위아래로, 피는 오른쪽 열 전체 높이를 써서 펼친다 */
+const sideZone = (b: ZoneBlock): CaptureLayout => ({
+  gwang: { x: b.x + 6, y: b.y + 6, w: 48, h: 62, axis: 'y' },
+  yeol: { x: b.x + 6, y: b.y + 72, w: 48, h: 62, axis: 'y' },
+  tti: { x: b.x + 6, y: b.y + 138, w: 48, h: 62, axis: 'y' },
+  pi: { x: b.x + 72, y: b.y + 6, w: 48, h: b.h - 12, axis: 'y' },
+});
 const rowZone = (y: number, xs: [number, number][], k = 1): CaptureLayout => {
   const [g, yl, t, p] = xs as [[number, number], [number, number], [number, number], [number, number]];
   return {
@@ -103,8 +93,8 @@ const rowZone = (y: number, xs: [number, number][], k = 1): CaptureLayout => {
 export const CAPTURE_LAYOUT: Record<SeatPosition, CaptureLayout> = {
   left: sideZone(ZONE_BLOCK.left),
   right: sideZone(ZONE_BLOCK.right),
-  top: rowZone(6, [[122, 100], [228, 136], [370, 136], [512, 128]], 1.45),
-  bottom: rowZone(336, [[66, 110], [184, 160], [352, 160], [520, 176]]),
+  top: rowZone(6, [[102, 104], [212, 140], [358, 140], [504, 154]], 1.45),
+  bottom: rowZone(336, [[66, 104], [176, 150], [332, 150], [488, 208]]),
 };
 
 /**

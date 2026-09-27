@@ -11,7 +11,6 @@ import {
   PILE_ROTATION,
   PILE_SCALE,
   PILE_STEP,
-  PI_STACK,
   ZONE_BLOCK,
   type PileRect,
 } from '../config/layout';
@@ -147,7 +146,8 @@ export function Board({ field, deck, captures, highlightMonth, enterFrom, moveMs
       const inspect = () => onInspect(`${name} · ${TYPE_NAME[type]} ${pile.length}장`, pile);
       const along = rect.axis === 'x' ? vw : vh;
       const length = rect.axis === 'x' ? rect.w : rect.h;
-      const offs = stackOffsets(pile.length, length, along, type === 'pi', k);
+      const perp = rect.axis === 'x' ? vh : vw;
+      const offs = stackOffsets(pile.length, length, along, perp, k);
       const visual = offs.map((o) => (rect.axis === 'x' ? { x: o.a, y: o.b } : { x: o.b, y: o.a }));
       pile.forEach((card, i) => {
         const vx = rect.x + visual[i]!.x;
@@ -271,26 +271,16 @@ function PlaneCard({
 }
 
 /**
- * 그룹 안 겹침 배치 (쌓는 방향 a, 수직 방향 b).
- *  - 일반: 길이 안에 맞추되 최소 PILE_STEP.min 만큼은 보이게. 넘치면 다음 줄로 살짝 어긋나게.
- *  - 피  : 5장씩 묶음(살짝 어긋나게)으로 쌓고 묶음끼리 간격을 둔다.
+ * 그룹 안 펼침 배치 (쌓는 방향 a, 수직 방향 b) — 피 포함 모든 종류 공통.
+ * 길이 안에 맞추되 최소 PILE_STEP.min 만큼은 보이게 펼치고,
+ * 넘치면 다음 줄을 카드 절반만큼 비켜 놓아 두 줄 모두 보이게 한다.
  */
-function stackOffsets(n: number, length: number, along: number, isPi: boolean, k = 1): { a: number; b: number }[] {
-  if (isPi) {
-    const stacks = Math.ceil(n / PI_STACK.size);
-    const fit = stacks > 1 ? (length - along - PI_STACK.inner * k * (PI_STACK.size - 1)) / (stacks - 1) : 0;
-    const gap = Math.max(12 * k, Math.min(PI_STACK.gap * k, fit));
-    return Array.from({ length: n }, (_, i) => {
-      const s = Math.floor(i / PI_STACK.size);
-      const j = i % PI_STACK.size;
-      return { a: s * gap + j * PI_STACK.inner * k, b: j * 1.5 };
-    });
-  }
+function stackOffsets(n: number, length: number, along: number, perp: number, k = 1): { a: number; b: number }[] {
   const fit = n > 1 ? (length - along) / (n - 1) : 0;
   const step = Math.min(PILE_STEP.max * k, Math.max(PILE_STEP.min * k, fit));
   const perLine = Math.max(1, Math.floor((length - along) / step) + 1);
   return Array.from({ length: n }, (_, i) => ({
     a: (i % perLine) * step + Math.floor(i / perLine) * (step / 2),
-    b: Math.floor(i / perLine) * 10,
+    b: Math.floor(i / perLine) * perp * 0.5,
   }));
 }

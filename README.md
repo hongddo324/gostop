@@ -44,7 +44,7 @@ src/
     StageContainer.tsx     고정 해상도 스테이지 + transform scale + 레터박스
     Background.tsx         거실 배경 (이미지 없으면 그라데이션)
     CharacterSeat.tsx      좌석 이름표/역할 뱃지
-    Board.tsx              모포 평면(matrix3d): 더미 / 바닥 패 12칸 / 좌석별 득점 영역(가이드선) — 최소 간격 보장 겹침, 피 5장 묶음
+    Board.tsx              모포 평면(matrix3d): 더미 / 바닥 패 12칸 / 좌석별 득점 영역(가이드선) — 피 포함 모두 펼쳐 놓기, 넘치면 절반 비켜 다음 줄
     CardZoom.tsx           모포 위 카드 탭 시 확대 보기
     Modals.tsx             먹을 패 선택 / 고·스톱 / 판 결과
     SettingsModal.tsx      우상단 ⚙ 설정
