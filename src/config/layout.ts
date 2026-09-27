@@ -41,54 +41,57 @@ export const PI_STACK = { size: 5, inner: 2.5, gap: 30 } as const;
 
 /** 더미 — 모포 중앙 */
 const CENTER_X = 380;
-const CENTER_Y = 236;
+const CENTER_Y = 196;
 export const DECK_POS = { x: CENTER_X - MAT_CARD.w / 2, y: CENTER_Y - MAT_CARD.h / 2 };
 
 /**
- * 바닥 패 12칸 (카드 중심 좌표). 더미 양옆 3열 × 2행.
+ * 바닥 패 12칸 (카드 중심 좌표). 더미 양옆 2열 × 3행.
  * 배열 순서 = 새 월이 놓이는 순서. 더미에 가까운 칸부터 바깥쪽으로 채운다.
  */
-const COL = [176, 244, 312, 448, 516, 584];
-const ROW = [190, 282];
+const COL = [254, 322, 438, 506];
+const ROW = [108, 196, 284];
 export const FIELD_SLOTS: readonly { x: number; y: number }[] = [
-  [2, 0], [3, 0], [2, 1], [3, 1],
-  [1, 0], [4, 0], [1, 1], [4, 1],
-  [0, 0], [5, 0], [0, 1], [5, 1],
+  [1, 1], [2, 1], [1, 0], [2, 0], [1, 2], [2, 2],
+  [0, 1], [3, 1], [0, 0], [3, 0], [0, 2], [3, 2],
 ].map(([c, r]) => ({ x: COL[c!]!, y: ROW[r!]! }));
 
 /**
- * 득점(먹은) 패 영역. 좌석마다 블록(가이드선 박스) 안에 종류별 그룹을 둔다.
+ * 득점(먹은) 패 영역 — 각자 자기 바로 앞. 좌석마다 블록(가이드선 박스) 안에 종류별 그룹.
  * { x, y } = 그룹 첫 카드 좌상단, w = 그룹 폭
  *
- * 모포가 앞쪽으로 넓어지면서 좌우 인물의 다리가 모포 양옆 아래쪽을 덮으므로,
- * 좌우 인물의 득점 패는 가려지지 않는 먼 쪽 모서리에 2×2 로 놓는다.
- *   ┌ 외할머니 2×2 ┬ 이모부님 2×2 ┬ 장인어른 2×2 ┐
- *   │            바닥 패 · 더미            │
- *   └──────────── 나 한 줄 ──────────────┘
+ * 외할머니·장인어른 무릎이 모포 양옆(평면 x<≈100, x>≈690)을 덮으므로 그 바로 안쪽에 세로 4줄로 둔다.
+ *   ┌──────── 이모부님 한 줄 ────────┐
+ *   │ 외할머니 │   바닥 패 · 더미   │ 장인어른 │
+ *   └──────────── 나 한 줄 ─────────────┘
  */
 export type PileRect = { x: number; y: number; w: number };
 export type CaptureLayout = Record<CardType, PileRect>;
 export type ZoneBlock = { x: number; y: number; w: number; h: number };
 
-const BLOCK_W = 236;
-const cornerZone = (x: number): CaptureLayout => ({
-  gwang: { x: x + 6, y: 10, w: 88 },
-  yeol: { x: x + 100, y: 10, w: 130 },
-  tti: { x: x + 6, y: 74, w: 112 },
-  pi: { x: x + 124, y: 74, w: 106 },
-});
-
 export const ZONE_BLOCK: Record<SeatPosition, ZoneBlock> = {
-  left: { x: 2, y: 2, w: BLOCK_W, h: 134 },
-  top: { x: 262, y: 2, w: BLOCK_W, h: 134 },
-  right: { x: 522, y: 2, w: BLOCK_W, h: 134 },
+  left: { x: 100, y: 114, w: 122, h: 210 },
+  top: { x: 218, y: 1, w: 324, h: 62 },
+  right: { x: 538, y: 114, w: 122, h: 210 },
   bottom: { x: 58, y: 328, w: 644, h: 70 },
 };
 
+const SIDE_ROWS = [118, 164, 210, 256];
+const sideZone = (b: ZoneBlock): CaptureLayout => ({
+  gwang: { x: b.x + 4, y: SIDE_ROWS[0]!, w: b.w - 8 },
+  yeol: { x: b.x + 4, y: SIDE_ROWS[1]!, w: b.w - 8 },
+  tti: { x: b.x + 4, y: SIDE_ROWS[2]!, w: b.w - 8 },
+  pi: { x: b.x + 4, y: SIDE_ROWS[3]!, w: b.w - 8 },
+});
+
 export const CAPTURE_LAYOUT: Record<SeatPosition, CaptureLayout> = {
-  left: cornerZone(ZONE_BLOCK.left.x),
-  top: cornerZone(ZONE_BLOCK.top.x),
-  right: cornerZone(ZONE_BLOCK.right.x),
+  left: sideZone(ZONE_BLOCK.left),
+  right: sideZone(ZONE_BLOCK.right),
+  top: {
+    gwang: { x: 222, y: 3, w: 66 },
+    yeol: { x: 292, y: 3, w: 80 },
+    tti: { x: 376, y: 3, w: 80 },
+    pi: { x: 460, y: 3, w: 78 },
+  },
   bottom: {
     gwang: { x: 66, y: 335, w: 100 },
     yeol: { x: 174, y: 335, w: 150 },
