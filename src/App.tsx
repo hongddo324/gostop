@@ -7,27 +7,8 @@ import { OpponentHand } from './components/OpponentHand';
 import { StageContainer } from './components/StageContainer';
 import { dealGame } from './game/deal';
 import { SEATS, splitSeats } from './game/seats';
-import type { GameState, SeatPosition } from './game/types';
-
-/** 좌석 위치별 캐릭터 박스 / AI 손패 배치 (1280×720 논리 좌표) */
-const SEAT_LAYOUT: Record<
-  SeatPosition,
-  { character: string; hand?: { className: string; orientation: 'horizontal' | 'vertical' } }
-> = {
-  top: {
-    character: 'left-[420px] top-[12px]',
-    hand: { className: 'left-[560px] top-[40px]', orientation: 'horizontal' },
-  },
-  left: {
-    character: 'left-[20px] top-[250px]',
-    hand: { className: 'left-[150px] top-[220px]', orientation: 'vertical' },
-  },
-  right: {
-    character: 'right-[20px] top-[250px]',
-    hand: { className: 'right-[150px] top-[220px]', orientation: 'vertical' },
-  },
-  bottom: { character: 'left-[40px] bottom-[16px]' },
-};
+import type { GameState } from './game/types';
+import { SEAT_LAYOUT } from './config/layout';
 
 export default function App() {
   const [observerId, setObserverId] = useState('uncle');
@@ -49,22 +30,23 @@ export default function App() {
     <StageContainer>
       <Background />
 
-      {/* 캐릭터 + AI 손패 */}
+      {/* 좌석 이름표 + AI 손패 (캐릭터는 배경에 포함) */}
       {SEATS.map((seat) => {
         const layout = SEAT_LAYOUT[seat.position];
         const isObserver = seat.id === observer.id;
         const hand = handOf(seat.id);
         return (
           <div key={seat.id}>
+            {!seat.isHuman && !isObserver && layout.hand && (
+              <OpponentHand cards={hand} x={layout.hand.x} y={layout.hand.y} />
+            )}
             <CharacterSeat
               seat={seat}
               isObserver={isObserver}
               handCount={game ? hand.length : undefined}
-              className={layout.character}
+              x={layout.nameTag.x}
+              y={layout.nameTag.y}
             />
-            {!seat.isHuman && !isObserver && layout.hand && (
-              <OpponentHand cards={hand} orientation={layout.hand.orientation} className={layout.hand.className} />
-            )}
           </div>
         );
       })}

@@ -1,3 +1,4 @@
+import { DECK_POS, FIELD_SLOTS } from '../config/layout';
 import type { HwatuCard, Month } from '../game/types';
 import { Card } from './Card';
 
@@ -18,55 +19,51 @@ function groupByMonth(cards: HwatuCard[]): HwatuCard[][] {
   return [...groups.values()];
 }
 
-/** 중앙 모포: 좌측 더미(Deck) + 바닥 패(Field) */
+/** 배경 모포 위에 얹히는 더미(Deck) + 바닥 패(Field) */
 export function Board({ field, deckCount, dealt }: Props) {
   const groups = groupByMonth(field);
 
   return (
-    <div className="absolute left-[270px] top-[190px] h-[290px] w-[740px] rounded-[28px] border-[6px] border-mat-dark bg-mat shadow-[0_10px_24px_rgba(0,0,0,0.45)]">
-      {/* 모포 질감 */}
-      <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.10),transparent_70%)]" />
-
-      {/* Deck 영역 */}
-      <div className="absolute left-6 top-1/2 flex -translate-y-1/2 flex-col items-center">
+    <>
+      {/* Deck */}
+      <div className="absolute flex flex-col items-center" style={{ left: DECK_POS.x, top: DECK_POS.y }}>
         <div className="relative h-[90px] w-[56px]">
-          {deckCount > 0 ? (
+          {Array.from({ length: Math.min(deckCount, 5) }, (_, i) => (
             // 두께감 표현용으로 최대 5장만 겹쳐 그린다
-            Array.from({ length: Math.min(deckCount, 5) }, (_, i) => (
-              <div key={i} className="absolute" style={{ left: -i * 1.5, top: -i * 1.5 }}>
-                <Card size="md" faceDown />
-              </div>
-            ))
-          ) : (
-            <div className="h-full w-full rounded-[6px] border-2 border-dashed border-white/40" />
-          )}
+            <div key={i} className="absolute" style={{ left: -i * 1.5, top: -i * 1.5 }}>
+              <Card size="md" faceDown />
+            </div>
+          ))}
         </div>
-        <span className="mt-2 rounded-full bg-black/40 px-2 text-xs font-bold text-white">더미 {deckCount}장</span>
+        {dealt && (
+          <span className="mt-1 whitespace-nowrap rounded-full bg-black/50 px-2 text-[11px] font-bold text-white">
+            더미 {deckCount}장
+          </span>
+        )}
       </div>
 
-      {/* Field 영역: 12칸 (2행 × 6열) */}
-      <div className="absolute left-[120px] right-5 top-1/2 grid -translate-y-1/2 grid-cols-6 grid-rows-2 gap-x-3 gap-y-4">
-        {Array.from({ length: 12 }).map((_, slot) => {
-          const group = groups[slot];
-          return (
-            <div key={slot} className="relative flex h-[90px] items-center justify-center rounded-md bg-black/10">
-              {group?.map((c, i) => (
-                <div key={c.id} className="absolute" style={{ transform: `translate(${i * 8}px, ${i * 4}px)` }}>
-                  <Card card={c} size="md" />
-                </div>
-              ))}
-            </div>
-          );
-        })}
-      </div>
+      {/* Field */}
+      {groups.map((group, slot) => {
+        const pos = FIELD_SLOTS[slot];
+        if (!pos) return null; // 12개월 초과는 발생하지 않음
+        return (
+          <div key={group[0]!.month} className="absolute" style={{ left: pos.x, top: pos.y }}>
+            {group.map((c, i) => (
+              <div key={c.id} className="absolute" style={{ left: i * 8, top: i * 4 }}>
+                <Card card={c} size="md" />
+              </div>
+            ))}
+          </div>
+        );
+      })}
 
       {!dealt && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="rounded-xl bg-black/50 px-5 py-2 text-lg font-bold text-white">
+        <div className="absolute left-[340px] top-[495px] w-[560px] text-center">
+          <span className="rounded-xl bg-black/55 px-5 py-2 text-lg font-bold text-white">
             ‘패 돌리기’를 눌러 시작하세요
           </span>
         </div>
       )}
-    </div>
+    </>
   );
 }

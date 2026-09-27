@@ -4,34 +4,25 @@ interface Props {
   seat: PlayerSeat;
   isObserver: boolean;
   handCount?: number;
-  className?: string;
+  /** 이름표 중심 x, 상단 y */
+  x: number;
+  y: number;
 }
 
-const AVATAR: Record<string, string> = {
-  me: '🙂',
-  grandma: '👵',
-  'father-in-law': '👴',
-  uncle: '🧔',
-};
-
-/** 캐릭터 자리 (임시 플레이스홀더). 추후 캐릭터 일러스트/애니메이션으로 교체. */
-export function CharacterSeat({ seat, isObserver, handCount, className = '' }: Props) {
+/**
+ * 좌석 이름표. 캐릭터 본체는 배경 일러스트에 포함되어 있으므로 여기서는 이름/역할만 표시한다.
+ * 추후 표정·말풍선·턴 표시 등 캐릭터 연출은 이 컴포넌트에서 확장.
+ */
+export function CharacterSeat({ seat, isObserver, handCount, x, y }: Props) {
   return (
-    <div className={`absolute flex w-[112px] flex-col items-center ${className}`}>
+    <div className="absolute flex -translate-x-1/2 flex-col items-center" style={{ left: x, top: y }}>
       {isObserver && (
         <div className="relative mb-1 whitespace-nowrap rounded-xl bg-white px-2 py-1 text-[11px] font-bold text-stone-700 shadow">
           허허, 잘 보고 내야지~
           <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-white" />
         </div>
       )}
-      <div
-        className={`flex h-[84px] w-[84px] items-center justify-center rounded-2xl border-2 border-dashed text-4xl ${
-          isObserver ? 'border-white/60 bg-black/20 opacity-80' : 'border-amber-100 bg-black/30'
-        }`}
-      >
-        {AVATAR[seat.id] ?? '👤'}
-      </div>
-      <div className="mt-1 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-0.5 text-sm font-bold text-white">
+      <div className="flex items-center gap-1 whitespace-nowrap rounded-full bg-black/60 px-2.5 py-0.5 text-sm font-bold text-white shadow">
         {seat.name}
         <span
           className={`rounded px-1 text-[10px] ${
@@ -40,10 +31,10 @@ export function CharacterSeat({ seat, isObserver, handCount, className = '' }: P
         >
           {isObserver ? '훈수' : seat.isHuman ? '나' : 'AI'}
         </span>
+        {handCount !== undefined && !isObserver && (
+          <span className="text-[11px] font-semibold opacity-80">{handCount}장</span>
+        )}
       </div>
-      {handCount !== undefined && !isObserver && (
-        <div className="mt-0.5 text-[11px] font-semibold text-white drop-shadow">손패 {handCount}장</div>
-      )}
     </div>
   );
 }

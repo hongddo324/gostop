@@ -16,6 +16,7 @@ npm run build      # 타입체크 + 프로덕션 빌드 (dist/, base: './' → C
 ```
 src/
   config/stage.ts          논리 해상도 1280×720 (16:9)
+  config/layout.ts         배경 기준 좌표(모포 사다리꼴, 더미, 바닥 12칸, 좌석 이름표/AI 손패)
   hooks/useStageScale.ts   뷰포트에 맞춘 비율 유지 배율 계산
   game/                    UI 비의존 순수 로직 (추후 AI/룰엔진 확장 지점)
     types.ts               HwatuCard / PlayerSeat / GameState
@@ -25,8 +26,8 @@ src/
   components/
     StageContainer.tsx     고정 해상도 스테이지 + transform scale + 레터박스
     Background.tsx         거실 배경 (이미지 없으면 그라데이션)
-    CharacterSeat.tsx      캐릭터 플레이스홀더
-    Board.tsx              모포 / 더미 / 바닥 패 12칸(같은 월 겹침)
+    CharacterSeat.tsx      좌석 이름표/역할 뱃지 (캐릭터는 배경 일러스트)
+    Board.tsx              모포 위 더미 / 바닥 패 12칸(같은 월 겹침)
     OpponentHand.tsx       AI 손패(뒷면)
     MyHand.tsx             내 손패
     Card.tsx               카드 (이미지 → 실패 시 텍스트 카드 fallback)
@@ -36,7 +37,9 @@ src/
 
 | 용도 | 경로 |
 | --- | --- |
-| 배경 | `public/assets/bg_livingroom.png` |
+| 배경 | `public/assets/bg_livingroom.webp` (1672×941, 16:9 — 캐릭터 3인·모포 포함) |
 | 카드 앞면 | `public/assets/cards/{cardId}.png` (예: `01-gwang.png`, `03-tti.png`, `11-pi-1.png`) |
 
 카드 ID 형식: `{월 2자리}-{gwang|yeol|tti|pi}[-{피 순번}]`. 파일이 없으면 자동으로 텍스트 카드로 표시된다.
+
+> 배경 이미지를 교체하면 `src/config/layout.ts`의 좌표만 다시 맞추면 된다.
