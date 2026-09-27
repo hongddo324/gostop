@@ -1,4 +1,12 @@
 import type { PlayerSeat } from '../game/types';
+import type { Difficulty } from '../logic/aiEngine';
+
+/** 이름 옆 난이도 라벨 (AI 대신) */
+const DIFF_TAG: Record<Difficulty, { text: string; cls: string }> = {
+  beginner: { text: '초급', cls: 'bg-emerald-600' },
+  intermediate: { text: '중급', cls: 'bg-sky-600' },
+  expert: { text: '고급·타짜', cls: 'bg-rose-600' },
+};
 
 interface Props {
   seat: PlayerSeat;
@@ -12,13 +20,15 @@ interface Props {
   bubble?: string;
   /** 광 판 사람이면 판 광 장수 */
   gwangCount?: number;
+  /** AI 난이도 — 이름 옆 라벨로 표시 */
+  difficulty: Difficulty;
   /** 이름표 중심 x, 상단 y */
   x: number;
   y: number;
 }
 
 /** 좌석 이름표 — 이름/역할/점수/고 횟수/차례 표시 + 말풍선 */
-export function CharacterSeat({ seat, isObserver, isTurn, handCount, score, goCount, bubble, gwangCount, x, y }: Props) {
+export function CharacterSeat({ seat, isObserver, isTurn, handCount, score, goCount, bubble, gwangCount, difficulty, x, y }: Props) {
   return (
     <div className="pointer-events-none absolute z-40 flex -translate-x-1/2 flex-col items-center" style={{ left: x, top: y }}>
       {bubble && (
@@ -38,10 +48,10 @@ export function CharacterSeat({ seat, isObserver, isTurn, handCount, score, goCo
         {seat.name}
         <span
           className={`rounded px-1 text-[10px] ${
-            isObserver ? 'bg-violet-500' : seat.isHuman ? 'bg-emerald-500' : 'bg-sky-600'
+            isObserver ? 'bg-violet-500' : seat.isHuman ? 'bg-emerald-500' : DIFF_TAG[difficulty].cls
           }`}
         >
-          {isObserver ? '광·훈수' : seat.isHuman ? '나' : 'AI'}
+          {isObserver ? '광·훈수' : seat.isHuman ? '나' : DIFF_TAG[difficulty].text}
         </span>
         {isObserver && gwangCount !== undefined && (
           <span className="text-[11px] text-amber-200">{gwangCount > 0 ? `광 ${gwangCount}` : '광 없음'}</span>

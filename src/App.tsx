@@ -155,6 +155,7 @@ export default function App() {
               key={seat.id}
               seat={seat}
               isObserver={isObserver}
+              difficulty={settings.difficulty}
               isTurn={current?.seat.id === seat.id}
               handCount={p?.hand.length}
               score={p ? scoreOf(p.captured).total : undefined}
