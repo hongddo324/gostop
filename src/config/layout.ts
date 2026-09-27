@@ -31,11 +31,11 @@ export const MAT_W = 760;
 export const MAT_H = 400;
 
 /** 모포 위 카드 크기 (평면 좌표) */
-export const MAT_CARD = { w: 50, h: 75 } as const;
+export const MAT_CARD = { w: 42, h: 63 } as const;
 /** 득점 패 카드 크기 */
-export const PILE_CARD = { w: 32, h: 48 } as const;
+export const PILE_CARD = { w: 30, h: 45 } as const;
 /** 득점 패 겹침 간격(쌓는 방향 기준): 최소 카드 짧은 변의 약 55% 는 보이게 */
-export const PILE_STEP = { min: 18, max: 24 } as const;
+export const PILE_STEP = { min: 17, max: 23 } as const;
 /** 피는 5장씩 한 묶음으로 쌓고 묶음끼리 간격을 둔다 */
 export const PI_STACK = { size: 5, inner: 2, gap: 24 } as const;
 
@@ -48,8 +48,8 @@ export const DECK_POS = { x: CENTER_X - MAT_CARD.w / 2, y: CENTER_Y - MAT_CARD.h
  * 바닥 패 12칸 (카드 중심 좌표). 더미 양옆 2열 × 3행.
  * 배열 순서 = 새 월이 놓이는 순서. 더미에 가까운 칸부터 바깥쪽으로 채운다.
  */
-const COL = [262, 324, 436, 498];
-const ROW = [118, 200, 282];
+const COL = [272, 330, 430, 488];
+const ROW = [122, 200, 278];
 export const FIELD_SLOTS: readonly { x: number; y: number }[] = [
   [1, 1], [2, 1], [1, 0], [2, 0], [1, 2], [2, 2],
   [0, 1], [3, 1], [0, 0], [3, 0], [0, 2], [3, 2],
@@ -71,13 +71,13 @@ export type CaptureLayout = Record<CardType, PileRect>;
 export type ZoneBlock = { x: number; y: number; w: number; h: number };
 
 export const ZONE_BLOCK: Record<SeatPosition, ZoneBlock> = {
-  top: { x: 116, y: 1, w: 528, h: 64 },
+  top: { x: 116, y: 1, w: 528, h: 76 },
   left: { x: 96, y: 94, w: 140, h: 232 },
   right: { x: 524, y: 94, w: 140, h: 232 },
   bottom: { x: 58, y: 328, w: 644, h: 64 },
 };
 
-/** 좌우 좌석: 누운 카드(가로 48 × 세로 32) 2×2 그룹, 아래로 쌓기 */
+/** 좌우 좌석: 누운 카드(가로 45 × 세로 30) 2×2 그룹, 아래로 쌓기 */
 const sideZone = (b: ZoneBlock): CaptureLayout => {
   const colA = b.x + 12;
   const colB = b.x + 80;
@@ -90,22 +90,27 @@ const sideZone = (b: ZoneBlock): CaptureLayout => {
     pi: { x: colB, y: rowBottom, w: 48, h: 104, axis: 'y' },
   };
 };
-const rowZone = (y: number, xs: [number, number][]): CaptureLayout => {
+const rowZone = (y: number, xs: [number, number][], k = 1): CaptureLayout => {
   const [g, yl, t, p] = xs as [[number, number], [number, number], [number, number], [number, number]];
   return {
-    gwang: { x: g[0], y, w: g[1], h: 48, axis: 'x' },
-    yeol: { x: yl[0], y, w: yl[1], h: 48, axis: 'x' },
-    tti: { x: t[0], y, w: t[1], h: 48, axis: 'x' },
-    pi: { x: p[0], y, w: p[1], h: 48, axis: 'x' },
+    gwang: { x: g[0], y, w: g[1], h: 48 * k, axis: 'x' },
+    yeol: { x: yl[0], y, w: yl[1], h: 48 * k, axis: 'x' },
+    tti: { x: t[0], y, w: t[1], h: 48 * k, axis: 'x' },
+    pi: { x: p[0], y, w: p[1], h: 48 * k, axis: 'x' },
   };
 };
 
 export const CAPTURE_LAYOUT: Record<SeatPosition, CaptureLayout> = {
   left: sideZone(ZONE_BLOCK.left),
   right: sideZone(ZONE_BLOCK.right),
-  top: rowZone(6, [[122, 100], [228, 136], [370, 136], [512, 128]]),
+  top: rowZone(6, [[122, 100], [228, 136], [370, 136], [512, 128]], 1.45),
   bottom: rowZone(336, [[66, 110], [184, 160], [352, 160], [520, 176]]),
 };
+
+/**
+ * 좌석별 득점 패 크기 배율 — 먼 쪽(이모부님)은 원근으로 작게 찌그러지므로 키워서 보정
+ */
+export const PILE_SCALE: Record<SeatPosition, number> = { top: 1.45, left: 1, right: 1, bottom: 1 };
 
 /** 좌석별 득점 패 회전 — 외할머니(왼쪽)·장인어른(오른쪽)은 90° 꺾어 본인 쪽을 향하게 */
 export const PILE_ROTATION: Record<SeatPosition, number> = { left: 90, right: -90, top: 0, bottom: 0 };
@@ -142,9 +147,9 @@ export const EXIT_DX: Record<SeatPosition, number> = { left: -340, top: 420, rig
 
 /** 훈수 채팅(카톡) 창 위치 — 광 판 사람이 앉았던 빈자리 (배경 좌표, 좌상단·폭) */
 export const CHAT_POS: Partial<Record<SeatPosition, { x: number; y: number; w: number }>> = {
-  left: { x: 14, y: 300, w: 300 },
+  left: { x: 14, y: 300, w: 262 }, // 외할머니 지폐(x 282~) 를 가리지 않게
   top: { x: 470, y: 150, w: 290 }, // 이모부님 지폐(x 772~) 와 겹치지 않게
-  right: { x: 966, y: 300, w: 300 },
+  right: { x: 992, y: 300, w: 276 }, // 장인어른 지폐(~x 982) 를 가리지 않게
 };
 
 /** 패를 '탁' 내려놓는 손 위치 (배경 좌표) — 카드가 여기서 모포로 날아간다 */

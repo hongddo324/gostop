@@ -9,6 +9,7 @@ import {
   MAT_W,
   PILE_CARD,
   PILE_ROTATION,
+  PILE_SCALE,
   PILE_STEP,
   PI_STACK,
   ZONE_BLOCK,
@@ -133,9 +134,12 @@ export function Board({ field, deck, captures, highlightMonth, enterFrom, moveMs
   for (const { position, name, cards } of captures) {
     const rotate = PILE_ROTATION[position];
     const sideways = Math.abs(rotate) === 90;
+    const k = PILE_SCALE[position];
+    const cw = PILE_CARD.w * k;
+    const ch = PILE_CARD.h * k;
     // 화면에 보이는 카드 모양 (90° 회전이면 가로로 누움)
-    const vw = sideways ? PILE_CARD.h : PILE_CARD.w;
-    const vh = sideways ? PILE_CARD.w : PILE_CARD.h;
+    const vw = sideways ? ch : cw;
+    const vh = sideways ? cw : ch;
     for (const type of TYPES) {
       const pile = cards.filter((c) => c.type === type);
       if (pile.length === 0) continue;
@@ -143,7 +147,7 @@ export function Board({ field, deck, captures, highlightMonth, enterFrom, moveMs
       const inspect = () => onInspect(`${name} · ${TYPE_NAME[type]} ${pile.length}장`, pile);
       const along = rect.axis === 'x' ? vw : vh;
       const length = rect.axis === 'x' ? rect.w : rect.h;
-      const offs = stackOffsets(pile.length, length, along, type === 'pi');
+      const offs = stackOffsets(pile.length, length, along, type === 'pi', k);
       const visual = offs.map((o) => (rect.axis === 'x' ? { x: o.a, y: o.b } : { x: o.b, y: o.a }));
       pile.forEach((card, i) => {
         const vx = rect.x + visual[i]!.x;
@@ -151,10 +155,10 @@ export function Board({ field, deck, captures, highlightMonth, enterFrom, moveMs
         placed.push({
           card,
           // 회전은 카드 중심 기준 → 보이는 상자 중심에 원래 크기 상자를 맞춘다
-          x: vx + (vw - PILE_CARD.w) / 2,
-          y: vy + (vh - PILE_CARD.h) / 2,
-          w: PILE_CARD.w,
-          h: PILE_CARD.h,
+          x: vx + (vw - cw) / 2,
+          y: vy + (vh - ch) / 2,
+          w: cw,
+          h: ch,
           z: 60 + i,
           zone: `pile-${position}`,
           rotate,
@@ -271,19 +275,19 @@ function PlaneCard({
  *  - 일반: 길이 안에 맞추되 최소 PILE_STEP.min 만큼은 보이게. 넘치면 다음 줄로 살짝 어긋나게.
  *  - 피  : 5장씩 묶음(살짝 어긋나게)으로 쌓고 묶음끼리 간격을 둔다.
  */
-function stackOffsets(n: number, length: number, along: number, isPi: boolean): { a: number; b: number }[] {
+function stackOffsets(n: number, length: number, along: number, isPi: boolean, k = 1): { a: number; b: number }[] {
   if (isPi) {
     const stacks = Math.ceil(n / PI_STACK.size);
-    const fit = stacks > 1 ? (length - along - PI_STACK.inner * (PI_STACK.size - 1)) / (stacks - 1) : 0;
-    const gap = Math.max(12, Math.min(PI_STACK.gap, fit));
+    const fit = stacks > 1 ? (length - along - PI_STACK.inner * k * (PI_STACK.size - 1)) / (stacks - 1) : 0;
+    const gap = Math.max(12 * k, Math.min(PI_STACK.gap * k, fit));
     return Array.from({ length: n }, (_, i) => {
       const s = Math.floor(i / PI_STACK.size);
-      const k = i % PI_STACK.size;
-      return { a: s * gap + k * PI_STACK.inner, b: k * 1.5 };
+      const j = i % PI_STACK.size;
+      return { a: s * gap + j * PI_STACK.inner * k, b: j * 1.5 };
     });
   }
   const fit = n > 1 ? (length - along) / (n - 1) : 0;
-  const step = Math.min(PILE_STEP.max, Math.max(PILE_STEP.min, fit));
+  const step = Math.min(PILE_STEP.max * k, Math.max(PILE_STEP.min * k, fit));
   const perLine = Math.max(1, Math.floor((length - along) / step) + 1);
   return Array.from({ length: n }, (_, i) => ({
     a: (i % perLine) * step + Math.floor(i / perLine) * (step / 2),
