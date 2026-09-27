@@ -9,8 +9,7 @@ import {
 } from '../components/CharacterSprite';
 import type { ChatMessage } from '../components/KakaoChat';
 import { line, type LineKey } from '../content/dialogue';
-import { visibleContext } from '../logic/aiContext';
-import { chooseTargetAi, decideGoAi, evaluateAiMove } from '../logic/aiEngine';
+import { aiDecideGo, aiPickCard, aiPickTarget } from '../logic/aiPlayer';
 import type { Settings } from '../settings';
 import { dealGame } from '../game/deal';
 import { choose, currentPlayer, declareGoStop, flipCard, playCard, resolveTurn } from '../game/engine';
@@ -151,7 +150,12 @@ export function useGameController(settings: Settings) {
     const prevSeller = gameRef.current?.observer;
     const seller = pickGwangSeller();
     const { players, observer } = splitSeats(seller.id);
-    const g = dealGame(players, observer);
+    // 선: 첫 판은 무작위, 이후에는 직전 판 승자 (나가리면 직전 선 유지).
+    // 선으로 정할 사람이 이번 판에 광을 팔고 빠지면 턴 순서상 다음 사람.
+    const prev = gameRef.current;
+    const wanted = prev ? (prev.result?.winnerId ?? prev.players[0]!.seat.id) : players[Math.floor(Math.random() * players.length)]!.id;
+    const leadId = players.some((p) => p.id === wanted) ? wanted : nextPlayerAfter(wanted, players.map((p) => p.id));
+    const g = dealGame(players, observer, Math.random, leadId);
     setGame(g);
 
     // 광 팔기 한마디 → 선의 인사
@@ -233,25 +237,17 @@ export function useGameController(settings: Settings) {
           const think = game.lastReport ? tm.aiThink : tm.firstTurnDelay;
           // 모션 시작 → '탁' 내려치는 프레임에 맞춰 카드가 손을 떠난다
           t = setTimeout(() => {
+            // 모션을 시작하기 전에 결정 (타짜는 시뮬레이션 계산이 있어 모션 중에 하면 끊겨 보인다)
+            const card = aiPickCard(game, cfg.current.difficulty);
             setPose(me.seat.id, 'play', playTotalMs(tm.playFrame) + 150);
             if (Math.random() < CHANCE.play) speak(me.seat.id, 'play');
-            later(playReleaseMs(tm.playFrame), () =>
-              setGame((g) => {
-                if (g !== game) return g;
-                const v = visibleContext(g);
-                const card = evaluateAiMove(v.hand, v.field, v.opponents, v.deckRemainingCount, cfg.current.difficulty, v.myCaptured);
-                return playCard(g, card.id);
-              }),
-            );
+            later(playReleaseMs(tm.playFrame), () => setGame((g) => (g === game ? playCard(g, card.id) : g)));
           }, think);
         }
         break;
       case 'choose':
         if (ai)
-          step(T().aiChoose, (g) => {
-            const v = visibleContext(g);
-            return choose(g, chooseTargetAi(g.pending!.options, v.opponents, cfg.current.difficulty, v.myCaptured).id);
-          });
+          step(T().aiChoose, (g) => choose(g, aiPickTarget(g, cfg.current.difficulty).id));
         break;
       case 'flip':
         step(T().beforeFlip, flipCard);
@@ -264,8 +260,7 @@ export function useGameController(settings: Settings) {
           t = setTimeout(() => {
             const g = gameRef.current;
             if (g !== game) return;
-            const v = visibleContext(g);
-            const go = decideGoAi({ ...v, handCount: v.hand.length }, cfg.current.difficulty);
+            const go = aiDecideGo(g, cfg.current.difficulty);
             speak(me.seat.id, go ? 'go' : 'stop', {}, go ? '고!' : '스톱!');
             if (go) reactToGo(g, me.seat.id);
             setGame(declareGoStop(g, go));
@@ -367,6 +362,17 @@ export function useGameController(settings: Settings) {
 }
 
 const ME_ID = 'me';
+
+/** 턴 순서(반시계: 아래→오른쪽→위→왼쪽)에서 seatId 다음으로 오는, ids 안의 좌석 */
+function nextPlayerAfter(seatId: string, ids: string[]): string {
+  const order = ['me', 'father-in-law', 'uncle', 'grandma'];
+  const i = order.indexOf(seatId);
+  for (let k = 1; k <= order.length; k++) {
+    const id = order[(i + k) % order.length]!;
+    if (ids.includes(id)) return id;
+  }
+  return ids[0]!;
+}
 
 function omit<T extends Record<string, unknown>>(obj: T, key: string): T {
   const next = { ...obj };

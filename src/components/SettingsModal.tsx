@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { formatWon, type Wallets } from '../game/money';
+import { SEATS } from '../game/seats';
 import { DIFFICULTY_LABEL, type Difficulty } from '../logic/aiEngine';
 import { SPEEDS, type Settings } from '../settings';
 
@@ -8,21 +10,24 @@ interface Props {
   onClose: () => void;
   /** 모두의 돈을 처음(3만원)으로 */
   onResetMoney: () => void;
+  /** 현재 돈 + 한 사람에게 돈 넣어주기 */
+  wallets: Wallets;
+  onAddMoney: (seatId: string, amount: number) => void;
 }
 
 const DIFF_DESC: Record<Difficulty, string> = {
   beginner: '짝 맞는 패 아무거나, 고/스톱은 반반',
-  intermediate: '자기 점수만 챙김, 1고 후 스톱',
-  expert: '견제·족보·뻑 확률까지 계산하는 타짜',
+  intermediate: '족보·견제·뻑 확률을 따지는 노련한 어른',
+  expert: '판을 수백 번 미리 둬 보고 돈 되는 수만 두는 타짜',
 };
 
 /** 우상단 ⚙ 설정: 난이도 / 배속 / 도움 모드 */
-export function SettingsModal({ settings, onChange, onClose, onResetMoney }: Props) {
+export function SettingsModal({ settings, onChange, onClose, onResetMoney, wallets, onAddMoney }: Props) {
   const [confirmReset, setConfirmReset] = useState(false);
   return (
     <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={onClose}>
       <div
-        className="w-[560px] rounded-2xl border-2 border-[#8a5a33] bg-[#3e2615]/95 px-7 pb-6 pt-5 text-amber-50 shadow-2xl"
+        className="max-h-[700px] w-[580px] overflow-y-auto rounded-2xl border-2 border-[#8a5a33] bg-[#3e2615]/95 px-7 pb-6 pt-5 text-amber-50 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -84,6 +89,21 @@ export function SettingsModal({ settings, onChange, onClose, onResetMoney }: Pro
         </Section>
 
         <Section title="돈 (1점 = 1,000원)">
+          <div className="mb-2 grid grid-cols-2 gap-1.5">
+            {SEATS.map((s) => (
+              <div key={s.id} className="flex items-center gap-2 rounded-xl bg-black/20 px-3 py-1.5">
+                <span className="w-[64px] text-sm font-bold">{s.name}</span>
+                <span className="flex-1 text-right text-sm tabular-nums text-amber-300">{formatWon(wallets[s.id] ?? 0)}</span>
+                <button
+                  type="button"
+                  onClick={() => onAddMoney(s.id, 10000)}
+                  className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-black shadow-[0_2px_0_#065f46] active:translate-y-px active:shadow-none"
+                >
+                  +1만원
+                </button>
+              </div>
+            ))}
+          </div>
           {confirmReset ? (
             <div className="flex items-center gap-2 rounded-xl bg-rose-900/40 px-3 py-2 text-sm">
               <span className="flex-1">모두의 돈을 3만원으로 되돌릴까요?</span>

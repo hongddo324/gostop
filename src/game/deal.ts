@@ -51,11 +51,15 @@ export function dealGame(
   players: readonly PlayerSeat[],
   observer: PlayerSeat,
   rng: Rng = Math.random,
+  /** 선(첫 차례) 좌석 — 없으면 턴 순서상 첫 사람. 턴은 여기서부터 반시계로 돈다 */
+  firstSeatId?: string,
 ): GameState {
   if (players.length !== PLAYER_COUNT) {
     throw new Error(`3인 플레이만 지원합니다. (입력: ${players.length}명)`);
   }
   const ordered = [...players].sort((a, b) => TURN_ORDER.indexOf(a.position) - TURN_ORDER.indexOf(b.position));
+  const lead = Math.max(0, ordered.findIndex((p) => p.id === firstSeatId));
+  ordered.push(...ordered.splice(0, lead));
 
   for (let attempt = 0; ; attempt++) {
     const deck: HwatuCard[] = shuffle(createDeck(), rng);

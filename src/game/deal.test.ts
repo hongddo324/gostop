@@ -100,3 +100,13 @@ describe('광 팔기 (훈수)', () => {
     expect(picked).toEqual(new Set(['grandma', 'uncle', 'father-in-law']));
   });
 });
+
+describe('선(첫 차례)', () => {
+  it('지정한 좌석부터 반시계 순서로 돈다', () => {
+    const { players, observer } = splitSeats('uncle');
+    const g = dealGame(players, observer, seededRng(1), 'father-in-law');
+    expect(g.players.map((p) => p.seat.id)).toEqual(['father-in-law', 'grandma', 'me']);
+    const g2 = dealGame(players, observer, seededRng(1));
+    expect(g2.players[0]!.seat.id).toBe('me');
+  });
+});

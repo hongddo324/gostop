@@ -31,5 +31,15 @@ export function useWallets() {
     setWallets(w);
   }, []);
   const reset = useCallback(() => set(initialWallets(IDS)), [set]);
-  return { wallets, setWallets: set, reset };
+  /** 특정 사람에게 돈 넣어주기 (설정의 '+1만원') */
+  const add = useCallback(
+    (seatId: string, amount: number) =>
+      setWallets((w) => {
+        const next = { ...w, [seatId]: (w[seatId] ?? 0) + amount };
+        save(next);
+        return next;
+      }),
+    [],
+  );
+  return { wallets, setWallets: set, reset, add };
 }

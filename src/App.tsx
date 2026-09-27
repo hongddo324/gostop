@@ -57,7 +57,7 @@ export default function App() {
       }
       return !v;
     });
-  const { wallets, setWallets, reset: resetWallets } = useWallets();
+  const { wallets, setWallets, reset: resetWallets, add: addMoney } = useWallets();
   const [money, setMoney] = useState<{ game: object; result: MoneySettlement } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<{ title: string; cards: HwatuCard[] } | null>(null);
@@ -124,6 +124,8 @@ export default function App() {
       onChange={updateSettings}
       onClose={() => setShowSettings(false)}
       onResetMoney={resetWallets}
+      wallets={wallets}
+      onAddMoney={addMoney}
     />
   );
 
