@@ -1,6 +1,7 @@
 import { HAND_PANEL_H } from '../config/stage';
 import type { HwatuCard } from '../game/types';
 import { Card } from './Card';
+import { MoneyStack } from './MoneyStack';
 
 /** 손패 카드 크기 */
 const HAND_CARD = { w: 64, h: 96 };
@@ -20,13 +21,29 @@ interface Props {
   onHint?: () => void;
   /** 훈수 추천 패 (초록 테두리) */
   recommendedId?: string;
+  /** 내 돈 / 직전 판 증감 */
+  money: number;
+  moneyDelta?: number;
 }
 
 /**
  * 내 손패 전용 패널 — 게임 장면 아래 별도 공간 (모포를 가리지 않음).
  * 조작: 한 번 탭 = 선택(같은 월 바닥 패 강조), 선택한 패를 한 번 더 탭 또는 '내기' = 내기.
  */
-export function MyHand({ cards, selectedId, myTurn, score, goCount, soldHand, onSelect, onPlay, onHint, recommendedId }: Props) {
+export function MyHand({
+  cards,
+  selectedId,
+  myTurn,
+  score,
+  goCount,
+  soldHand,
+  onSelect,
+  onPlay,
+  onHint,
+  recommendedId,
+  money,
+  moneyDelta,
+}: Props) {
   if (soldHand) return <SoldPanel hand={soldHand} />;
   const selected = cards.find((c) => c.id === selectedId);
 
@@ -38,15 +55,16 @@ export function MyHand({ cards, selectedId, myTurn, score, goCount, soldHand, on
       style={{ height: HAND_PANEL_H }}
     >
       {/* 내 정보 */}
-      <div className="flex w-[150px] shrink-0 flex-col gap-1 text-amber-50">
+      <div className="flex w-[250px] shrink-0 flex-col gap-1 text-amber-50">
         <div className="flex items-center gap-1.5 text-lg font-black">
           나 <span className="rounded bg-emerald-500 px-1.5 text-xs text-white">{cards.length}장</span>
+          {score !== undefined && (
+            <span className="text-sm font-bold text-amber-300">
+              {score}점{goCount ? <span className="ml-1 rounded bg-rose-600 px-1 text-xs text-white">{goCount}고</span> : null}
+            </span>
+          )}
         </div>
-        {score !== undefined && (
-          <div className="text-sm font-bold text-amber-300">
-            {score}점{goCount ? <span className="ml-1 rounded bg-rose-600 px-1 text-xs text-white">{goCount}고</span> : null}
-          </div>
-        )}
+        <MoneyStack amount={money} delta={moneyDelta} horizontal />
         {onHint && myTurn && (
           <button
             type="button"

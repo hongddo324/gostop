@@ -119,6 +119,14 @@ export const NAME_TAG_POS: Record<SeatPosition, { x: number; y: number } | undef
   bottom: undefined, // 나: 1인칭 — 손패는 하단 전용 패널
 };
 
+/** 좌석별 돈(지폐 묶음) 위치 (배경 좌표 — 이름표 옆). alignRight 면 x 가 오른쪽 끝 */
+export const MONEY_POS: Partial<Record<SeatPosition, { x: number; y: number; alignRight?: boolean }>> = {
+  // 말풍선(이름표 위, 폭 ±120)과 겹치지 않는 자리
+  left: { x: 282, y: 282 },
+  top: { x: 772, y: 116 },
+  right: { x: 982, y: 282, alignRight: true },
+};
+
 /** 패를 '탁' 내려놓는 손 위치 (배경 좌표) — 카드가 여기서 모포로 날아간다 */
 export const PLAY_ORIGIN: Record<SeatPosition, { x: number; y: number }> = {
   left: { x: 250, y: 600 },

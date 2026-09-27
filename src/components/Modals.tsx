@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ScoreBreakdown } from '../game/scoring';
+import { formatWon } from '../game/money';
 import type { GameResult, GwangSale, HwatuCard, PendingChoice, PlayerState } from '../game/types';
 import { Card } from './Card';
 
@@ -96,12 +97,15 @@ export function GoStopModal({
 export function ResultModal({
   result,
   gwangSale,
+  moneyDeltas,
   nameOf,
   winnerScore,
   onNext,
 }: {
   result: GameResult;
   gwangSale: GwangSale;
+  /** 이번 판 돈 증감 (좌석 id → 원) */
+  moneyDeltas?: Record<string, number>;
   nameOf: (seatId: string) => string;
   winnerScore?: ScoreBreakdown;
   onNext: () => void;
@@ -131,7 +135,24 @@ export function ResultModal({
       )}
       {gwangSale.gwangCount > 0 && (
         <div className="mt-3 rounded bg-amber-900/40 px-3 py-1 text-center text-sm">
-          광값 · {nameOf(gwangSale.sellerId)} 광 {gwangSale.gwangCount}장 → 한 사람당 <b>{gwangSale.pricePerPlayer}점</b>씩 받음
+          광값 · {nameOf(gwangSale.sellerId)} 광 {gwangSale.gwangCount}장 → 한 사람당{' '}
+          <b>{formatWon(gwangSale.pricePerPlayer * 1000)}</b>씩 받음
+        </div>
+      )}
+      {moneyDeltas && (
+        <div className="mt-3 grid grid-cols-2 gap-1 text-sm">
+          {Object.entries(moneyDeltas)
+            .filter(([, d]) => d !== 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([id, d]) => (
+              <div key={id} className="flex justify-between rounded bg-black/25 px-2 py-0.5">
+                <span>{nameOf(id)}</span>
+                <b className={d > 0 ? 'text-emerald-300' : 'text-rose-300'}>
+                  {d > 0 ? '+' : '-'}
+                  {formatWon(Math.abs(d))}
+                </b>
+              </div>
+            ))}
         </div>
       )}
       <div className="mt-4 flex justify-center">

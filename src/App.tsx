@@ -6,15 +6,18 @@ import { CharacterSeat } from './components/CharacterSeat';
 import { CharacterSprite } from './components/CharacterSprite';
 import { ChoiceModal, GoStopModal, ResultModal } from './components/Modals';
 import { HintPanel } from './components/HintPanel';
+import { MoneyStack } from './components/MoneyStack';
 import { MyHand } from './components/MyHand';
 import { SettingsModal } from './components/SettingsModal';
 import { StageContainer } from './components/StageContainer';
-import { CHARACTER_PLACEMENT, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
+import { CHARACTER_PLACEMENT, MONEY_POS, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
 import { SCENE_SHIFT, STAGE_HEIGHT, STAGE_WIDTH } from './config/stage';
 import { renderHintVoice } from './content/hintVoice';
 import { visibleContext } from './logic/aiContext';
 import { getHintExplanation, type HintExplanation } from './logic/hintEngine';
+import { settleMoney, type MoneySettlement } from './game/money';
 import { useSettings } from './settings';
+import { useWallets } from './wallet';
 import { currentPlayer } from './game/engine';
 import { scoreOf } from './game/scoring';
 import { SEATS } from './game/seats';
@@ -30,6 +33,8 @@ export default function App() {
   const observer = game?.observer;
   const [showSettings, setShowSettings] = useState(false);
   const [hint, setHint] = useState<HintExplanation | null>(null);
+  const { wallets, setWallets, reset: resetWallets } = useWallets();
+  const [money, setMoney] = useState<{ game: object; result: MoneySettlement } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<{ title: string; cards: HwatuCard[] } | null>(null);
 
@@ -63,6 +68,16 @@ export default function App() {
     setSelectedId(h.recommendedCardId);
     say(game.observer.id, renderHintVoice(h, game.observer.id));
   };
+
+  // 판이 끝나면 한 번만 돈 정산 (광값 + 판돈) → 저장
+  useEffect(() => {
+    if (!game || game.phase !== 'end' || money?.game === game) return;
+    const result = settleMoney(wallets, game);
+    setWallets(result.wallets);
+    setMoney({ game, result });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game]);
+  const moneyDelta = (seatId: string) => (game?.phase === 'end' && money?.game === game ? money.result.deltas[seatId] : undefined);
 
   const handleDeal = () => {
     deal();
@@ -105,6 +120,22 @@ export default function App() {
           if (!place) return null;
           const pose = motion[seat.id] ?? (seat.id === observer?.id ? 'observe' : 'idle');
           return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} frameMs={timing.playFrame} {...place} />;
+        })}
+
+        {/* 좌석별 돈 (이름표 옆 지폐 묶음) */}
+        {SEATS.map((seat) => {
+          const pos = MONEY_POS[seat.position];
+          if (!pos) return null;
+          return (
+            <MoneyStack
+              key={`money-${seat.id}`}
+              amount={wallets[seat.id] ?? 0}
+              delta={moneyDelta(seat.id)}
+              alignRight={pos.alignRight}
+              className="absolute z-30"
+              style={{ left: pos.x, top: pos.y, transform: pos.alignRight ? 'translateX(-100%)' : undefined }}
+            />
+          );
         })}
 
         {/* 좌석 이름표 + 말풍선 */}
@@ -161,6 +192,8 @@ export default function App() {
         onPlay={handlePlay}
         onHint={settings.helpMode && !game?.observer.isHuman ? handleHint : undefined}
         recommendedId={hint?.recommendedCardId}
+        money={wallets[ME.id] ?? 0}
+        moneyDelta={moneyDelta(ME.id)}
       />
 
       {/* HUD */}
@@ -204,6 +237,7 @@ export default function App() {
         <ResultModal
           result={game.result}
           gwangSale={game.gwangSale}
+          moneyDeltas={money?.game === game ? money.result.deltas : undefined}
           nameOf={(id) => SEATS.find((s) => s.id === id)?.name ?? id}
           winnerScore={game.result.winnerId ? scoreOf(playerOf(game.result.winnerId)!.captured) : undefined}
           onNext={handleDeal}
@@ -219,7 +253,12 @@ export default function App() {
       )}
       {zoom && <CardZoom title={zoom.title} cards={zoom.cards} onClose={() => setZoom(null)} />}
       {showSettings && (
-        <SettingsModal settings={settings} onChange={updateSettings} onClose={() => setShowSettings(false)} />
+        <SettingsModal
+          settings={settings}
+          onChange={updateSettings}
+          onClose={() => setShowSettings(false)}
+          onResetMoney={resetWallets}
+        />
       )}
     </StageContainer>
   );

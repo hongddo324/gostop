@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { DIFFICULTY_LABEL, type Difficulty } from '../logic/aiEngine';
 import { SPEEDS, type Settings } from '../settings';
 
@@ -5,6 +6,8 @@ interface Props {
   settings: Settings;
   onChange: (patch: Partial<Settings>) => void;
   onClose: () => void;
+  /** 모두의 돈을 처음(3만원)으로 */
+  onResetMoney: () => void;
 }
 
 const DIFF_DESC: Record<Difficulty, string> = {
@@ -14,7 +17,8 @@ const DIFF_DESC: Record<Difficulty, string> = {
 };
 
 /** 우상단 ⚙ 설정: 난이도 / 배속 / 도움 모드 */
-export function SettingsModal({ settings, onChange, onClose }: Props) {
+export function SettingsModal({ settings, onChange, onClose, onResetMoney }: Props) {
+  const [confirmReset, setConfirmReset] = useState(false);
   return (
     <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={onClose}>
       <div
@@ -76,6 +80,35 @@ export function SettingsModal({ settings, onChange, onClose }: Props) {
             value={settings.autoHint}
             onChange={(v) => onChange({ autoHint: v })}
           />
+        </Section>
+
+        <Section title="돈 (1점 = 1,000원)">
+          {confirmReset ? (
+            <div className="flex items-center gap-2 rounded-xl bg-rose-900/40 px-3 py-2 text-sm">
+              <span className="flex-1">모두의 돈을 3만원으로 되돌릴까요?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  onResetMoney();
+                  setConfirmReset(false);
+                }}
+                className="rounded-lg bg-rose-600 px-3 py-1 font-bold"
+              >
+                초기화
+              </button>
+              <button type="button" onClick={() => setConfirmReset(false)} className="rounded-lg bg-black/30 px-3 py-1">
+                취소
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmReset(true)}
+              className="w-full rounded-xl border-2 border-rose-400/60 bg-black/20 py-2 text-sm font-bold text-rose-200"
+            >
+              💸 돈 초기화 (모두 3만원으로)
+            </button>
+          )}
         </Section>
       </div>
     </div>
