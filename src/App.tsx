@@ -8,6 +8,7 @@ import { ChoiceModal, GoStopModal, ResultModal } from './components/Modals';
 import { MyHand } from './components/MyHand';
 import { StageContainer } from './components/StageContainer';
 import { CHARACTER_PLACEMENT, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
+import { SCENE_SHIFT, STAGE_HEIGHT, STAGE_WIDTH } from './config/stage';
 import { aiChooseCard } from './game/ai';
 import { currentPlayer } from './game/engine';
 import { scoreOf } from './game/scoring';
@@ -39,7 +40,9 @@ export default function App() {
     if (!myTurn || !game) return setHint(null);
     const pick = aiChooseCard(game, myHand);
     const matches = game.field.some((c) => c.month === pick.month);
-    setHint(matches ? `${pick.month}월 내서 먹어봐~` : `${pick.month}월 버려도 되겠네`);
+    setHint(
+      pick.isBonus ? '보너스패부터 내게~' : matches ? `${pick.month}월 내서 먹어봐~` : `${pick.month}월 버려도 되겠네`,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myTurn]);
 
@@ -64,71 +67,79 @@ export default function App() {
 
   return (
     <StageContainer>
-      <Background />
+      {/* ── 게임 장면 (배경 좌표계, 손패 패널 높이만큼 위로 올림) ── */}
+      <div
+        className="absolute left-0 top-0"
+        style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT, transform: `translateY(${-SCENE_SHIFT}px)` }}
+      >
+        <Background />
 
-      {/* 모포 위 카드 (캐릭터보다 아래 레이어 — 팔/무릎이 카드를 가리도록) */}
-      <Board
-        field={game?.field ?? []}
-        deck={game?.deck ?? []}
-        captures={game?.players.map((p) => ({ position: p.seat.position, name: p.seat.name, cards: p.captured })) ?? []}
-        highlightMonth={myTurn ? selectedCard?.month : undefined}
-        enterFrom={enterFrom}
-        onInspect={(title, cards) => setZoom({ title, cards })}
-      />
+        {/* 모포 위 카드 (캐릭터보다 아래 레이어 — 팔/무릎이 카드를 가리도록) */}
+        <Board
+          field={game?.field ?? []}
+          deck={game?.deck ?? []}
+          captures={game?.players.map((p) => ({ position: p.seat.position, name: p.seat.name, cards: p.captured })) ?? []}
+          highlightMonth={myTurn ? selectedCard?.month : undefined}
+          enterFrom={enterFrom}
+          onInspect={(title, cards) => setZoom({ title, cards })}
+        />
 
-      {/* 캐릭터 (배경과 분리된 스프라이트) */}
-      {SEATS.map((seat) => {
-        const place = CHARACTER_PLACEMENT[seat.position];
-        if (!place) return null;
-        const pose = motion[seat.id] ?? (seat.id === observer.id ? 'observe' : 'idle');
-        return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} {...place} />;
-      })}
+        {/* 캐릭터 (배경과 분리된 스프라이트) */}
+        {SEATS.map((seat) => {
+          const place = CHARACTER_PLACEMENT[seat.position];
+          if (!place) return null;
+          const pose = motion[seat.id] ?? (seat.id === observer.id ? 'observe' : 'idle');
+          return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} {...place} />;
+        })}
 
-      {/* 좌석 이름표 + 말풍선 */}
-      {SEATS.map((seat) => {
-        const tag = NAME_TAG_POS[seat.position];
-        if (!tag) return null;
-        const p = playerOf(seat.id);
-        const isObserver = seat.id === observer.id;
-        return (
-          <CharacterSeat
-            key={seat.id}
-            seat={seat}
-            isObserver={isObserver}
-            isTurn={current?.seat.id === seat.id}
-            handCount={p?.hand.length}
-            score={p ? scoreOf(p.captured).total : undefined}
-            goCount={p?.goCount}
-            bubble={bubbles[seat.id]?.text ?? (isObserver ? (hint ?? '허허, 잘 보고 내야지~') : undefined)}
-            x={tag.x}
-            y={tag.y}
-          />
-        );
-      })}
+        {/* 좌석 이름표 + 말풍선 */}
+        {SEATS.map((seat) => {
+          const tag = NAME_TAG_POS[seat.position];
+          if (!tag) return null;
+          const p = playerOf(seat.id);
+          const isObserver = seat.id === observer.id;
+          return (
+            <CharacterSeat
+              key={seat.id}
+              seat={seat}
+              isObserver={isObserver}
+              isTurn={current?.seat.id === seat.id}
+              handCount={p?.hand.length}
+              score={p ? scoreOf(p.captured).total : undefined}
+              goCount={p?.goCount}
+              bubble={bubbles[seat.id]?.text ?? (isObserver ? (hint ?? '허허, 잘 보고 내야지~') : undefined)}
+              x={tag.x}
+              y={tag.y}
+            />
+          );
+        })}
 
-      {/* 내 말풍선 (쪽!/고! 등) — 화면 아래 가운데 */}
-      {bubbles[ME.id] && (
-        <div
-          key={bubbles[ME.id]!.seq}
-          className="pointer-events-none absolute left-[430px] top-[500px] z-40 animate-[pop_.25s_ease-out] rounded-2xl bg-white px-5 py-2 text-3xl font-black text-rose-600 shadow-xl"
-        >
-          {bubbles[ME.id]!.text}
-        </div>
-      )}
+        {/* 내 말풍선 (쪽!/고! 등) — 화면 아래 가운데 */}
+        {bubbles[ME.id] && (
+          <div
+            key={bubbles[ME.id]!.seq}
+            className="pointer-events-none absolute left-[560px] top-[600px] z-40 animate-[pop_.25s_ease-out] rounded-2xl bg-white px-5 py-2 text-3xl font-black text-rose-600 shadow-xl"
+          >
+            {bubbles[ME.id]!.text}
+          </div>
+        )}
 
-      {!game && (
-        <div className="absolute left-[340px] top-[495px] w-[560px] text-center">
-          <span className="rounded-xl bg-black/55 px-5 py-2 text-lg font-bold text-white">
-            ‘패 돌리기’를 눌러 시작하세요
-          </span>
-        </div>
-      )}
+        {!game && (
+          <div className="absolute left-[360px] top-[540px] w-[560px] text-center">
+            <span className="rounded-xl bg-black/55 px-5 py-2 text-lg font-bold text-white">
+              ‘패 돌리기’를 눌러 시작하세요
+            </span>
+          </div>
+        )}
+      </div>
 
+      {/* ── 내 손패 전용 패널 ── */}
       <MyHand
         cards={myHand}
         selectedId={selectedId}
         myTurn={myTurn}
         score={game ? scoreOf(playerOf(ME.id)?.captured ?? []).total : undefined}
+        goCount={playerOf(ME.id)?.goCount}
         onSelect={(c) => setSelectedId((prev) => (prev === c.id ? null : c.id))}
         onPlay={handlePlay}
       />

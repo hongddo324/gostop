@@ -12,7 +12,7 @@ export function cardValue(c: HwatuCard): number {
     case 'tti':
       return c.ribbon === 'plain' ? 5 : 7;
     case 'pi':
-      return c.piValue === 2 ? 6 : 3;
+      return c.piValue * 3;
   }
 }
 
@@ -23,6 +23,8 @@ export function cardValue(c: HwatuCard): number {
 export function aiChooseCard(s: GameState, hand = currentPlayer(s).hand): HwatuCard {
   let best = hand[0]!;
   let bestScore = -Infinity;
+  const bonus = hand.find((c) => c.isBonus);
+  if (bonus) return bonus; // 보너스패는 공짜 — 무조건 먼저
   for (const c of hand) {
     const matches = s.field.filter((f) => f.month === c.month);
     let v: number;

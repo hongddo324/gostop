@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CharacterPose } from '../components/CharacterSprite';
+import { PLAY_RELEASE_MS, PLAY_TOTAL_MS, type CharacterPose } from '../components/CharacterSprite';
 import { aiChooseCard, aiChooseTarget, aiDecideGo } from '../game/ai';
 import { dealGame } from '../game/deal';
 import { choose, currentPlayer, declareGoStop, flipCard, playCard, resolveTurn } from '../game/engine';
@@ -7,8 +7,8 @@ import type { GameState, PlayerSeat, SpecialEvent } from '../game/types';
 
 /** 연출 타이밍 (ms) */
 export const TIMING = {
-  aiThink: 900, // AI 가 패를 고르는 시간
-  playPose: 750, // 패 내는 모션 유지
+  aiThink: 800, // AI 가 패를 고르는 시간
+  playPose: PLAY_TOTAL_MS + 120, // 패 치기 8프레임 모션
   beforeFlip: 650, // 낸 패가 날아간 뒤 더미 뒤집기까지
   beforeResolve: 750, // 뒤집은 패 확인 후 먹기까지
   aiChoose: 600,
@@ -23,6 +23,7 @@ export const SPECIAL_TEXT: Record<SpecialEvent, string> = {
   ttadak: '따닥!',
   ppeokEat: '뻑 먹었다!',
   sweep: '싹쓸이!',
+  bonus: '보너스!',
 };
 
 export interface Bubble {
@@ -111,9 +112,10 @@ export function useGameController(players: PlayerSeat[], observer: PlayerSeat) {
     switch (game.phase) {
       case 'play':
         if (ai) {
+          // 모션 시작 → '탁' 내려치는 프레임에 맞춰 카드가 손을 떠난다
           t = setTimeout(() => {
             setPose(me.seat.id, 'play', TIMING.playPose);
-            setGame((g) => (g === game ? playCard(g, aiChooseCard(g).id) : g));
+            later(PLAY_RELEASE_MS, () => setGame((g) => (g === game ? playCard(g, aiChooseCard(g).id) : g)));
           }, TIMING.aiThink);
         }
         break;
@@ -141,7 +143,7 @@ export function useGameController(players: PlayerSeat[], observer: PlayerSeat) {
         break;
     }
     return () => clearTimeout(t);
-  }, [game, setPose, say]);
+  }, [game, setPose, say, later]);
 
   // ── 턴 결과 연출: 특수 상황 말풍선, 점수 오르면 기뻐하기 ──────────
   const lastSeq = useRef(0);

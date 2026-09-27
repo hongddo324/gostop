@@ -72,6 +72,29 @@ export function Card({
 type Dim = (typeof SIZE_PX)[CardSize];
 
 function CardFace({ card, dim }: { card: HwatuCard; dim: Dim }) {
+  if (card.isBonus) return <BonusFace card={card} dim={dim} />;
+  return <ImageFace card={card} dim={dim} />;
+}
+
+/** 보너스패 — 이미지 없이 코드로 그린다 (금박 느낌 + 피 장수) */
+function BonusFace({ card, dim }: { card: HwatuCard; dim: Dim }) {
+  const big = Math.round(dim.h * 0.36);
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-[5px] border-2 border-card-red bg-[radial-gradient(circle_at_50%_35%,#fff7cc,#f5c542_60%,#c98a12)] leading-none text-card-red">
+      <span className="font-black" style={{ fontSize: Math.round(dim.h * 0.13) }}>
+        보너스
+      </span>
+      <span className="font-black drop-shadow-[0_1px_0_#fff]" style={{ fontSize: big }}>
+        {card.piValue}
+      </span>
+      <span className="font-black" style={{ fontSize: Math.round(dim.h * 0.15) }}>
+        피
+      </span>
+    </div>
+  );
+}
+
+function ImageFace({ card, dim }: { card: HwatuCard; dim: Dim }) {
   const url = cardImageUrl(card);
   const [failed, setFailed] = useState(() => failedImages.has(url));
 

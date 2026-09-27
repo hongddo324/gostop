@@ -1,5 +1,6 @@
-/** 화투 월 (1~12) */
-export type Month = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+/** 화투 월 (1~12). 13 = 보너스패 (월 없음 — 바닥에 놓이지 않고 바로 득점 패로 간다) */
+export type Month = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
+export const BONUS_MONTH = 13;
 
 /** 카드 종류: 광 / 열끗 / 띠 / 피 */
 export type CardType = 'gwang' | 'yeol' | 'tti' | 'pi';
@@ -16,8 +17,10 @@ export interface HwatuCard {
   readonly name: string;
   /** 띠인 경우 세부 종류 */
   readonly ribbon?: RibbonKind;
-  /** 피 점수 (일반 피 1, 쌍피 2). 피가 아니면 0 */
-  readonly piValue: 0 | 1 | 2;
+  /** 피 점수 (일반 피 1, 쌍피 2, 쓰리피 3). 피가 아니면 0 */
+  readonly piValue: 0 | 1 | 2 | 3;
+  /** 보너스패 (쌍피/쓰리피) */
+  readonly isBonus?: boolean;
   /** 고도리 새 (2·4·8월 열끗) */
   readonly isGodori?: boolean;
   /** 비광 (12월 광) — 3광 계산 시 예외 처리용 */
@@ -71,10 +74,12 @@ export interface TurnState {
   readonly playedMatch: number;
   readonly flipped?: HwatuCard;
   readonly flippedTarget?: HwatuCard;
+  /** 이번 턴에 얻은 보너스패 (손에서 낸 것 + 뒤집어서 나온 것) */
+  readonly bonus?: HwatuCard[];
 }
 
 /** 특수 상황: 쪽 / 뻑 / 따닥 / 뻑 먹기 / 싹쓸이 */
-export type SpecialEvent = 'jjok' | 'ppeok' | 'ttadak' | 'ppeokEat' | 'sweep';
+export type SpecialEvent = 'jjok' | 'ppeok' | 'ttadak' | 'ppeokEat' | 'sweep' | 'bonus';
 
 /** 직전 턴 결과 (연출/로그용) */
 export interface TurnReport {

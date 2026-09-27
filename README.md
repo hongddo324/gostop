@@ -15,15 +15,15 @@ npm run build      # 타입체크 + 프로덕션 빌드 (dist/, base: './' → C
 
 ```
 src/
-  config/stage.ts          논리 해상도 1280×720 (16:9)
+  config/stage.ts          논리 해상도 1280×720 (16:9), 장면/손패 패널 분할(HAND_PANEL_H)
   config/layout.ts         모포 사다리꼴 + 모포 평면 좌표(더미·바닥 12칸·좌석별 득점 패 영역), 캐릭터/이름표 배치
   config/characterFrames.json  캐릭터 프레임 캔버스·기준점 (scripts/slice_characters.py 가 생성)
   lib/homography.ts        직사각형→사다리꼴 투영 변환(CSS matrix3d) — 모포 위 카드를 모포 기울기대로 눕힘
   hooks/useStageScale.ts   뷰포트에 맞춘 비율 유지 배율 계산
   game/                    UI 비의존 순수 로직 (추후 AI/룰엔진 확장 지점)
     types.ts               HwatuCard / PlayerSeat / GameState
-    cards.ts               48장 정의(월·종류·띠·쌍피·고도리·비광·국진)
-    deal.ts                Fisher–Yates 셔플(RNG 주입), 3인 분배(7/7/7 + 바닥 6 + 더미 21)
+    cards.ts               표준 48장(월·종류·띠·쌍피·고도리·비광·국진) + 보너스패 2장(쌍피·쓰리피)
+    deal.ts                Fisher–Yates 셔플(RNG 주입), 3인 분배(7/7/7 + 바닥 6 + 더미 23), 바닥 보너스는 선이 가져감
     seats.ts               4좌석(나·외할머니·장인어른·이모부님) + 훈수 좌석 분리
     engine.ts              룰 엔진(순수 함수): play → choose → flip → resolve → goStop → end
                            쪽/뻑/따닥/뻑 먹기/싹쓸이, 피 빼앗기, 고/스톱, 광박·피박 정산
@@ -38,8 +38,8 @@ src/
     Board.tsx              모포 평면(matrix3d): 더미 / 바닥 패 12칸 / 각자 앞 득점 패(광·열끗·띠·피)
     CardZoom.tsx           모포 위 카드 탭 시 확대 보기
     Modals.tsx             먹을 패 선택 / 고·스톱 / 판 결과
-    CharacterSprite.tsx    배경과 분리된 캐릭터 스프라이트 + 모션(idle/play/cheer/observe)
-    MyHand.tsx             내 손패 전용 우하단 트레이 (탭=선택·같은 월 강조, 한 번 더 탭/‘내기’=내기)
+    CharacterSprite.tsx    배경과 분리된 캐릭터 스프라이트 + 모션(idle / play 8프레임 '탁' / cheer / observe)
+    MyHand.tsx             장면 아래 내 손패 전용 패널 (탭=선택·같은 월 강조, 한 번 더 탭/‘내기’=내기)
     Card.tsx               카드 (이미지 → 실패 시 텍스트 카드 fallback)
 ```
 
@@ -47,10 +47,10 @@ src/
 
 | 용도 | 경로 |
 | --- | --- |
-| 배경 | `public/assets/bg_livingroom.webp` (1672×941, 16:9 — 거실+모포, 인물 없음) |
-| 캐릭터 원본 시트 | `assets-src/characters_play.webp`(대기·패 내기·대기2), `assets-src/characters_cheer.webp`(득점 기쁨 3프레임) — 행: 외할머니/장인어른/이모부님 |
-| 캐릭터 프레임 | `public/assets/characters/{seatId}/{play-1..3,cheer-1..3}.webp` ← `python3 scripts/slice_characters.py` |
-| 카드 앞면 | `public/assets/cards/{cardId}.webp` (예: `01-gwang.webp`, `03-tti.webp`, `11-pi-1.webp`) |
+| 배경 | `public/assets/bg_livingroom.webp` (1672×941, 16:9 — 거실+모포(앞쪽으로 넓힘), 인물 없음) |
+| 캐릭터 원본 시트 | `assets-src/motion_{seatId}.webp`(패 치기 8프레임, 2×4), `assets-src/characters_cheer.webp`(득점 기쁨 3프레임 — 행: 외할머니/이모부님/장인어른) |
+| 캐릭터 프레임 | `public/assets/characters/{seatId}/{play-1..8,cheer-1..3}.webp` ← `python3 scripts/slice_characters.py` (다리 영역 상호상관으로 프레임 정렬) |
+| 카드 앞면 | `public/assets/cards/{cardId}.webp` (예: `01-gwang.webp`, `03-tti.webp`, `11-pi-1.webp`) — 보너스패는 코드로 그림 |
 | 카드 원본 시트 | `assets-src/hwatu_sprite.jpg` (8열×6행) → `python3 scripts/slice_cards.py` 로 48장 생성 |
 
 카드 ID 형식: `{월 2자리}-{gwang|yeol|tti|pi}[-{피 순번}]`. 파일이 없으면 자동으로 텍스트 카드로 표시된다.
@@ -59,7 +59,10 @@ src/
 
 ## 게임 규칙 (3인 고스톱)
 
+- 좌석: 나(아래) · 외할머니(왼쪽) · 이모부님(가운데) · 장인어른(오른쪽) 중 3명 플레이, 1명 훈수
 - 턴 순서: 반시계 (나 → 오른쪽 → 가운데 → 왼쪽 중 참가자), 첫 판은 내가 선
+- 보너스패(쌍피 2 · 쓰리피 3): 손에서 내면 바로 가져가고 더미 1장을 받아 한 번 더 냄,
+  뒤집어 나오면 가져가고 한 장 더 뒤집음, 분배 때 바닥에 깔리면 선이 가져가고 보충
 - 고/스톱: 3점 이상이고 마지막 고 이후 점수가 오르면 선택. 손패를 다 쓰면 자동 스톱
 - 고 보너스: 1고 +1, 2고 +2, 3고부터 (점수+고) × 2^(고-2)
 - 박: 광박(승자 광 점수 & 패자 광 0장), 피박(승자 피 점수 & 패자 피 1~5장) 각 ×2

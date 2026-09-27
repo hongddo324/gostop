@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { createDeck } from './cards';
+import { createDeck, createStandardDeck } from './cards';
 import { FIELD_SIZE, HAND_SIZE, dealGame, seededRng, shuffle } from './deal';
 import { splitSeats } from './seats';
 
 describe('createDeck', () => {
-  const deck = createDeck();
+  const deck = createStandardDeck();
 
-  it('48장, 고유 ID', () => {
+  it('표준 48장 + 보너스 2장 = 50장, 고유 ID', () => {
     expect(deck).toHaveLength(48);
-    expect(new Set(deck.map((c) => c.id)).size).toBe(48);
+    const all = createDeck();
+    expect(all).toHaveLength(50);
+    expect(new Set(all.map((c) => c.id)).size).toBe(50);
+    expect(all.filter((c) => c.isBonus).map((c) => c.piValue)).toEqual([2, 3]);
   });
 
   it('월별 4장', () => {
@@ -48,16 +51,21 @@ describe('dealGame', () => {
   const { players, observer } = splitSeats('uncle');
   const state = dealGame(players, observer, seededRng(7));
 
-  it('3인 7장 / 바닥 6장 / 더미 21장', () => {
+  it('3인 7장 / 바닥 6장 / 나머지 더미 (바닥 보너스는 선이 가져가고 보충)', () => {
     expect(state.players).toHaveLength(3);
     state.players.forEach((p) => expect(p.hand).toHaveLength(HAND_SIZE));
     expect(state.field).toHaveLength(FIELD_SIZE);
-    expect(state.deck).toHaveLength(48 - 3 * HAND_SIZE - FIELD_SIZE);
+    const bonusTaken = state.players[0]!.captured.length;
+    expect(state.deck).toHaveLength(50 - 3 * HAND_SIZE - FIELD_SIZE - bonusTaken);
   });
 
-  it('중복/누락 없음', () => {
-    const all = [...state.players.flatMap((p) => p.hand), ...state.field, ...state.deck];
-    expect(new Set(all.map((c) => c.id)).size).toBe(48);
+  it('여러 시드에서 중복/누락 없음, 바닥에 보너스패 없음', () => {
+    for (let seed = 1; seed <= 300; seed++) {
+      const g = dealGame(players, observer, seededRng(seed));
+      const all = [...g.players.flatMap((p) => [...p.hand, ...p.captured]), ...g.field, ...g.deck];
+      expect(new Set(all.map((c) => c.id)).size).toBe(50);
+      expect(g.field.some((c) => c.isBonus)).toBe(false);
+    }
   });
 
   it('참관자는 플레이어에 포함되지 않음', () => {
@@ -67,9 +75,9 @@ describe('dealGame', () => {
 });
 
 describe('카드 이미지 에셋', () => {
-  it('48장 모두 public/assets/cards/{id}.webp 가 존재', async () => {
+  it('표준 48장 모두 public/assets/cards/{id}.webp 가 존재 (보너스패는 코드로 그림)', async () => {
     const { existsSync } = await import('node:fs');
-    const missing = createDeck().filter((c) => !existsSync(`public/assets/cards/${c.id}.webp`));
+    const missing = createStandardDeck().filter((c) => !existsSync(`public/assets/cards/${c.id}.webp`));
     expect(missing.map((c) => c.id)).toEqual([]);
   });
 });

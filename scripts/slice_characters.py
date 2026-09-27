@@ -1,19 +1,20 @@
 """
-캐릭터 모션 시트를 프레임별 투명 WebP 로 분리한다.
+캐릭터 모션 시트를 프레임별 투명 WebP 로 분리하고 정렬한다.
 
-입력 (투명 배경 RGBA, 3행 × 3열):
-  assets-src/characters_play.webp   화투 치는 모션: [패 들고 대기, 패 내기, 패 들고 대기2]
-  assets-src/characters_cheer.webp  득점 시 좋아하는 모션: 3프레임 루프
-  행 순서: 외할머니 / 장인어른(가운데) / 이모부님(오른쪽)
+입력 (투명 배경 RGBA):
+  assets-src/motion_{seatId}.webp   화투 치는 모션 8프레임 (2행 × 4열, 행 우선)
+      1 대기 → 2 패 고르기 → 3 들어 올리기 → 4 높이 들기 → 5 내려치기 → 6 바닥에 탁 → 7 돌아오기 → 8 대기
+  assets-src/characters_cheer.webp  득점 기쁨 3프레임 (3행 × 3열) — 행: 외할머니 / 이모부님(가운데) / 장인어른(오른쪽)
 
 출력:
-  public/assets/characters/{seatId}/{play-1..3,cheer-1..3}.webp
-  src/config/characterFrames.json   캐릭터별 캔버스 크기와 기준점(앉은 자리 하단 중앙)
+  public/assets/characters/{seatId}/{play-1..8,cheer-1..3}.webp
+  src/config/characterFrames.json   캐릭터별 캔버스 크기와 기준점(대기 프레임의 다리 하단 중앙)
 
-한 캐릭터의 6프레임은 모두 같은 캔버스 크기 + 같은 기준점으로 정규화하므로
-프레임 전환 시 몸 위치가 튀지 않는다.
-또한 시트마다 인물 크기가 조금씩 달라서(기쁨 시트가 2~4% 작음), 자세와 무관하게 일정한
-'앉은 다리 폭'을 기준으로 기쁨 프레임을 패 치기 프레임 크기에 맞춰 리샘플링한다.
+정렬 방식:
+  내려치는 프레임은 손이 다리보다 아래로 내려가므로 '맨 아래 픽셀' 기준 정렬은 위아래로 튄다.
+  대신 기준 프레임(대기)의 다리 영역 마스크와 각 프레임 마스크의 상호상관(FFT) 최대점으로
+  이동량을 구해, 앉은 다리가 모든 프레임에서 같은 자리에 오도록 맞춘다.
+  기쁨 시트는 인물 크기가 달라 먼저 다리 폭 비율로 리샘플링한다.
 
 사용: python3 scripts/slice_characters.py   (pip install pillow numpy scipy)
 """
@@ -23,97 +24,129 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
+from scipy.signal import fftconvolve
 
 ROOT = Path(__file__).resolve().parent.parent
-SHEETS = {
-    "play": ROOT / "assets-src" / "characters_play.webp",
-    "cheer": ROOT / "assets-src" / "characters_cheer.webp",
-}
-ROW_IDS = ["grandma", "father-in-law", "uncle"]
+SRC = ROOT / "assets-src"
 OUT = ROOT / "public" / "assets" / "characters"
 META = ROOT / "src" / "config" / "characterFrames.json"
 
+SEATS = ["grandma", "uncle", "father-in-law"]
+CHEER_ROW = {"grandma": 0, "uncle": 1, "father-in-law": 2}
+
 ALPHA_MIN = 16
-LEG_BAND = 0.15  # 하단 15% (다리/엉덩이) 영역의 중심을 가로 기준점으로 사용
+LEG_BAND = (0.72, 0.92)  # 기준 프레임 높이 대비 다리 영역 (손이 내려오는 맨 아래는 제외)
 PAD = 4
 
 
-def extract_frames(path: Path):
-    """시트에서 3×3 프레임을 (row, col) -> RGBA crop, bbox 로 반환"""
-    img = Image.open(path).convert("RGBA")
-    rgba = np.asarray(img)
+def extract(path: Path, rows: int, cols: int):
+    """시트에서 rows×cols 프레임을 행 우선 리스트(RGBA ndarray)로 반환"""
+    rgba = np.asarray(Image.open(path).convert("RGBA"))
     mask = rgba[:, :, 3] > ALPHA_MIN
-    lab, n = ndi.label(mask)
-    objs = ndi.find_objects(lab)
+    lab, _ = ndi.label(mask)
     h, w = mask.shape
-
-    # 각 연결 요소를 중심 좌표로 3×3 셀에 배정 (팔/던지는 카드처럼 떨어진 조각도 같은 셀로 묶임)
     cells: dict[tuple[int, int], list[int]] = {}
-    for i, sl in enumerate(objs, start=1):
+    for i, sl in enumerate(ndi.find_objects(lab), start=1):
         if sl is None:
             continue
         cy = (sl[0].start + sl[0].stop) / 2
         cx = (sl[1].start + sl[1].stop) / 2
-        cells.setdefault((int(cy // (h / 3)), int(cx // (w / 3))), []).append(i)
-
-    frames = {}
-    for (r, c), ids in cells.items():
-        m = np.isin(lab, ids)
-        ys, xs = np.where(m)
-        y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
-        crop = rgba[y0:y1, x0:x1].copy()
-        crop[~m[y0:y1, x0:x1]] = 0  # 이웃 셀 침범분 제거
-        sub = m[y0:y1, x0:x1]
-        band = sub[int((y1 - y0) * (1 - LEG_BAND)) :]
-        bx = np.where(band.any(axis=0))[0]
-        anchor_x = (bx.min() + bx.max()) / 2  # 다리 영역 가로 중심
-        anchor_y = y1 - y0  # 맨 아래
-        leg_width = bx.max() - bx.min() + 1
-        frames[(r, c)] = (crop, anchor_x, anchor_y, leg_width)
+        cells.setdefault((int(cy // (h / rows)), int(cx // (w / cols))), []).append(i)
+    frames = []
+    for r in range(rows):
+        for c in range(cols):
+            m = np.isin(lab, cells[(r, c)])
+            ys, xs = np.where(m)
+            y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+            crop = rgba[y0:y1, x0:x1].copy()
+            crop[~m[y0:y1, x0:x1]] = 0
+            frames.append(crop)
     return frames
 
 
-def rescale(frame, k: float):
-    crop, ax, ay, lw = frame
+def leg_width(frame) -> float:
+    m = frame[:, :, 3] > ALPHA_MIN
+    h = m.shape[0]
+    band = m[int(h * LEG_BAND[0]) : int(h * LEG_BAND[1])]
+    xs = np.where(band.any(axis=0))[0]
+    return float(xs.max() - xs.min() + 1)
+
+
+def resize(frame, k: float):
     if abs(k - 1) < 1e-3:
         return frame
-    img = Image.fromarray(crop)
-    w, h = img.size
-    img = img.resize((max(1, round(w * k)), max(1, round(h * k))), Image.LANCZOS)
-    return np.asarray(img), ax * k, round(ay * k), lw * k
+    img = Image.fromarray(frame)
+    return np.asarray(img.resize((max(1, round(img.width * k)), max(1, round(img.height * k))), Image.LANCZOS))
+
+
+def band_center(frame) -> float:
+    m = frame[:, :, 3] > ALPHA_MIN
+    h = m.shape[0]
+    xs = np.where(m[int(h * LEG_BAND[0]) : int(h * LEG_BAND[1])].any(axis=0))[0]
+    return (xs.min() + xs.max()) / 2
+
+
+SEARCH = 60  # 초기 추정값 주변 탐색 반경(px) — 팔 등 다른 부위와 잘못 맞춰지는 것 방지
+
+
+def align_offset(ref, frame) -> tuple[int, int]:
+    """frame 을 ref 좌표계에 놓을 때의 (dx, dy) — 다리 영역 상호상관 최대점"""
+    def legs_mask(f, lo=LEG_BAND[0], hi=1.0):
+        m = (f[:, :, 3] > ALPHA_MIN).astype(np.float32)
+        out = np.zeros_like(m)
+        h = m.shape[0]
+        out[int(h * lo) : int(h * hi)] = m[int(h * lo) : int(h * hi)]
+        return out
+
+    ref_legs = legs_mask(ref, LEG_BAND[0], LEG_BAND[1])
+    fm = legs_mask(frame, 0.5)
+    # corr[y, x] = sum(ref_legs[i, j] * fm[i - dy, j - dx])
+    corr = fftconvolve(ref_legs, fm[::-1, ::-1], mode="full")
+    oy, ox = fm.shape[0] - 1, fm.shape[1] - 1
+
+    # 초기 추정: 바닥 맞춤 + 다리 중심 맞춤, 그 주변에서만 최대점 탐색
+    gx = int(round(band_center(ref) - band_center(frame)))
+    gy = ref.shape[0] - frame.shape[0]
+    y_lo, y_hi = max(0, gy + oy - SEARCH), min(corr.shape[0], gy + oy + SEARCH + 1)
+    x_lo, x_hi = max(0, gx + ox - SEARCH), min(corr.shape[1], gx + ox + SEARCH + 1)
+    win = corr[y_lo:y_hi, x_lo:x_hi]
+    py, px = np.unravel_index(np.argmax(win), win.shape)
+    return int(px + x_lo - ox), int(py + y_lo - oy)
 
 
 def main():
-    all_frames = {k: extract_frames(p) for k, p in SHEETS.items()}
+    cheer_sheet = extract(SRC / "characters_cheer.webp", 3, 3)
     meta = {}
-    for r, seat in enumerate(ROW_IDS):
-        # 시트 간 인물 크기 보정: 다리 폭 중앙값 비율
-        ref = float(np.median([all_frames["play"][(r, c)][3] for c in range(3)]))
-        items = []
-        for kind in ("play", "cheer"):
-            lw = float(np.median([all_frames[kind][(r, c)][3] for c in range(3)]))
-            k = ref / lw
-            print(f"{seat} {kind}: scale {k:.3f}")
-            for c in range(3):
-                crop, ax, ay, _ = rescale(all_frames[kind][(r, c)], k)
-                items.append((f"{kind}-{c + 1}", crop, ax, ay))
+    for seat in SEATS:
+        play = extract(SRC / f"motion_{seat}.webp", 2, 4)
+        ref = play[0]
+        cheer = cheer_sheet[CHEER_ROW[seat] * 3 : CHEER_ROW[seat] * 3 + 3]
+        k = leg_width(ref) / float(np.median([leg_width(f) for f in cheer]))
+        cheer = [resize(f, k) for f in cheer]
+        print(f"{seat}: cheer scale {k:.3f}")
 
-        left = max(ax for _, _, ax, _ in items)
-        right = max(crop.shape[1] - ax for _, crop, ax, _ in items)
-        top = max(ay for _, _, _, ay in items)
-        cw, ch = int(np.ceil(left + right)) + PAD * 2, int(top) + PAD
-        anchor = (int(round(left)) + PAD, int(top))
+        named = [(f"play-{i + 1}", f) for i, f in enumerate(play)] + [(f"cheer-{i + 1}", f) for i, f in enumerate(cheer)]
+        placed = [(name, f, *align_offset(ref, f)) for name, f in named]
+
+        x0 = min(dx for _, _, dx, _ in placed) - PAD
+        y0 = min(dy for _, _, _, dy in placed) - PAD
+        x1 = max(dx + f.shape[1] for _, f, dx, _ in placed) + PAD
+        y1 = max(dy + f.shape[0] for _, f, _, dy in placed) + PAD
+        cw, ch = x1 - x0, y1 - y0
+
+        # 기준점: 대기 프레임 다리 영역 가로 중심, 대기 프레임 맨 아래
+        rm = ref[:, :, 3] > ALPHA_MIN
+        band = rm[int(ref.shape[0] * LEG_BAND[0]) : int(ref.shape[0] * LEG_BAND[1])]
+        bx = np.where(band.any(axis=0))[0]
+        anchor = (int(round((bx.min() + bx.max()) / 2)) - x0, ref.shape[0] - y0)
 
         (OUT / seat).mkdir(parents=True, exist_ok=True)
-        for name, crop, ax, ay in items:
+        for name, f, dx, dy in placed:
             canvas = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
-            canvas.alpha_composite(Image.fromarray(crop), (int(round(anchor[0] - ax)), int(anchor[1] - ay)))
-            canvas.save(OUT / seat / f"{name}.webp", quality=88, method=6)
-
-        # 대기 프레임 기준 인물 키 (배치 시 표시 높이 → 배율 계산용)
-        body_h = int(items[0][3])
-        meta[seat] = {"width": cw, "height": ch, "anchorX": anchor[0], "anchorY": anchor[1], "bodyHeight": body_h}
-        print(seat, meta[seat])
+            canvas.alpha_composite(Image.fromarray(f), (dx - x0, dy - y0))
+            canvas.save(OUT / seat / f"{name}.webp", quality=86, method=6)
+        meta[seat] = {"width": cw, "height": ch, "anchorX": anchor[0], "anchorY": anchor[1], "bodyHeight": int(ref.shape[0])}
+        print(seat, meta[seat], "offsets", [(n, dx, dy) for n, _, dx, dy in placed])
 
     META.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 

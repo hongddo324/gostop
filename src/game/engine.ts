@@ -1,3 +1,4 @@
+import { sortHand } from './deal';
 import { RULES } from './rules';
 import { applyGoBonus, scoreOf } from './scoring';
 import type { GameResult, GameState, HwatuCard, Month, PlayerState, SpecialEvent, TurnReport } from './types';
@@ -28,18 +29,53 @@ export function playCard(s: GameState, cardId: string): GameState {
   const me = currentPlayer(s);
   const card = me.hand.find((c) => c.id === cardId);
   if (!card) throw new Error(`손패에 없는 카드: ${cardId}`);
+  if (card.isBonus) return playBonus(s, card);
 
   const matches = byMonth(s.field, card.month);
   const next: GameState = {
     ...s,
     players: updatePlayer(s, me.seat.id, (p) => ({ ...p, hand: without(p.hand, [card]) })),
     field: [...s.field, card],
-    turn: { played: card, playedMatch: matches.length, playedTarget: matches.length === 1 ? matches[0] : undefined },
+    turn: {
+      bonus: s.turn.bonus,
+      played: card,
+      playedMatch: matches.length,
+      playedTarget: matches.length === 1 ? matches[0] : undefined,
+    },
   };
   if (matches.length === 2) {
     return { ...next, phase: 'choose', pending: { kind: 'play', card, options: matches } };
   }
   return { ...next, phase: 'flip' };
+}
+
+/**
+ * 보너스패 내기: 바로 내 득점 패로 가져가고, 더미에서 1장을 손패로 가져온 뒤 같은 차례에 다시 낸다.
+ * (더미가 비어 더 낼 패가 없으면 차례를 마친다)
+ */
+function playBonus(s: GameState, card: HwatuCard): GameState {
+  const me = currentPlayer(s);
+  const [draw, ...rest] = s.deck;
+  const scoreBefore = scoreOf(me.captured).total;
+  const captured = [...me.captured, card];
+  const hand = sortHand([...without(me.hand, [card]), ...(draw ? [draw] : [])]);
+  const next: GameState = {
+    ...s,
+    deck: draw ? rest : s.deck,
+    players: updatePlayer(s, me.seat.id, (p) => ({ ...p, hand, captured })),
+    turn: { ...s.turn, bonus: [...(s.turn.bonus ?? []), card] },
+    lastReport: {
+      seq: ++reportSeq,
+      seatId: me.seat.id,
+      captured: [card],
+      specials: ['bonus'],
+      stolen: [],
+      scoreBefore,
+      scoreAfter: scoreOf(captured).total,
+    },
+  };
+  if (hand.length > 0) return next; // 같은 차례에 한 장 더 낸다
+  return finishTurn(next, scoreOf(captured).total);
 }
 
 /** 같은 월 2장 중 먹을 패 선택 */
@@ -57,8 +93,25 @@ export function choose(s: GameState, targetId: string): GameState {
 /** 더미 맨 위 1장 뒤집기 */
 export function flipCard(s: GameState): GameState {
   assertPhase(s, 'flip');
+  // 뒤집은 패가 보너스패면 바로 가져가고 한 장 더 뒤집는다
+  let deck = s.deck;
+  const bonus: HwatuCard[] = [];
+  while (deck[0]?.isBonus) {
+    bonus.push(deck[0]);
+    deck = deck.slice(1);
+  }
+  if (bonus.length > 0) {
+    const me = currentPlayer(s);
+    s = {
+      ...s,
+      deck,
+      players: updatePlayer(s, me.seat.id, (p) => ({ ...p, captured: [...p.captured, ...bonus] })),
+      turn: { ...s.turn, bonus: [...(s.turn.bonus ?? []), ...bonus] },
+    };
+  }
+
   const [top, ...rest] = s.deck;
-  if (!top) return { ...s, phase: 'resolve' }; // 더미 소진 (3인 룰에서는 발생하지 않음)
+  if (!top) return { ...s, phase: 'resolve' }; // 더미 소진 (보너스패로 더미를 더 쓴 경우)
 
   const played = s.turn.played!;
   const next: GameState = { ...s, deck: rest, field: [...s.field, top], turn: { ...s.turn, flipped: top } };
@@ -129,9 +182,11 @@ export function resolveTurn(s: GameState): GameState {
 
   const lastTurn = s.players.every((p) => p.hand.length === 0);
   if (captured.length > 0 && field.length === 0 && !lastTurn) specials.push('sweep');
+  const bonus = s.turn.bonus ?? [];
+  if (bonus.length > 0) specials.push('bonus');
 
-  // 피 빼앗기
-  const stealCount = specials.filter((e) => e !== 'ppeok').length * RULES.stealPerSpecial;
+  // 피 빼앗기 (뻑·보너스는 제외)
+  const stealCount = specials.filter((e) => e !== 'ppeok' && e !== 'bonus').length * RULES.stealPerSpecial;
   const stolen: TurnReport['stolen'] = [];
   let players = s.players.map((p) => {
     if (p.seat.id === me.seat.id) return p;
@@ -145,7 +200,8 @@ export function resolveTurn(s: GameState): GameState {
     return { ...p, captured: cap };
   });
 
-  const scoreBefore = scoreOf(me.captured).total;
+  // 이번 턴 보너스패는 이미 득점 패에 들어가 있으므로 턴 시작 시점 점수에서 뺀다
+  const scoreBefore = scoreOf(without(me.captured, bonus)).total;
   const myCaptured = [...me.captured, ...captured, ...stolen.map((x) => x.card)];
   const scoreAfter = scoreOf(myCaptured).total;
   players = players.map((p) => (p.seat.id === me.seat.id ? { ...p, captured: myCaptured } : p));
@@ -153,15 +209,17 @@ export function resolveTurn(s: GameState): GameState {
   const report: TurnReport = {
     seq: ++reportSeq,
     seatId: me.seat.id,
-    captured,
+    captured: [...bonus, ...captured],
     specials,
     stolen,
     scoreBefore,
     scoreAfter,
   };
-  const next: GameState = { ...s, players, field, ppeokMonths, lastReport: report };
+  return finishTurn({ ...s, players, field, ppeokMonths, lastReport: report }, scoreAfter);
+}
 
-  // 고/스톱 판정: 기준 점수 이상이고, 마지막 고 이후 점수가 올랐을 때
+/** 턴 마무리: 고/스톱 판정(기준 점수 이상 + 마지막 고 이후 점수 상승) 또는 다음 차례 */
+function finishTurn(next: GameState, scoreAfter: number): GameState {
   const meNow = currentPlayer(next);
   if (scoreAfter >= RULES.goStopMinScore && scoreAfter > meNow.goScore) {
     // 낼 패가 없으면 더 고를 불러도 의미가 없으므로 자동 스톱

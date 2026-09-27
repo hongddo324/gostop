@@ -4,8 +4,8 @@ import type { PlayerSeat } from './types';
 export const SEATS: readonly PlayerSeat[] = [
   { id: 'me', name: '나', position: 'bottom', isHuman: true },
   { id: 'grandma', name: '외할머니', position: 'left', isHuman: false },
-  { id: 'father-in-law', name: '장인어른', position: 'top', isHuman: false },
-  { id: 'uncle', name: '이모부님', position: 'right', isHuman: false },
+  { id: 'uncle', name: '이모부님', position: 'top', isHuman: false },
+  { id: 'father-in-law', name: '장인어른', position: 'right', isHuman: false },
 ];
 
 /** 참관(훈수) 좌석을 제외한 3명의 플레이어와 참관자를 분리 */

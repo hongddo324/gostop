@@ -111,6 +111,31 @@ describe('특수 상황', () => {
   });
 });
 
+describe('보너스패', () => {
+  it('손에서 내면 바로 득점 패로 가고, 더미 1장을 손에 받아 같은 차례에 한 번 더 낸다', () => {
+    const s = playCard(mk({ hand: ['bonus-3', '01-gwang'], field: ['05-pi-1'], deck: ['07-pi-1', '09-pi-1'] }), 'bonus-3');
+    expect(s.phase).toBe('play');
+    expect(s.current).toBe(0);
+    expect(capturedIds(s)).toEqual(['bonus-3']);
+    expect(s.players[0]!.hand.map((c) => c.id).sort()).toEqual(['01-gwang', '07-pi-1']);
+    expect(s.lastReport!.specials).toEqual(['bonus']);
+    // 이어서 일반 패를 내고 턴 종료
+    const s2 = runTurn(s, '01-gwang');
+    expect(s2.current).toBe(1);
+    expect(s2.lastReport!.specials).toContain('bonus');
+  });
+
+  it('더미에서 뒤집으면 바로 가져가고 한 장 더 뒤집는다', () => {
+    const s = runTurn(mk({ hand: ['01-gwang'], field: ['05-pi-1'], deck: ['bonus-2', '05-tti'] }), '01-gwang');
+    expect(capturedIds(s)).toEqual(['05-pi-1', '05-tti', 'bonus-2'].sort());
+    expect(s.lastReport!.specials).toContain('bonus');
+  });
+
+  it('쓰리피는 피 3장 값', () => {
+    expect(scoreOf(['bonus-3', 'bonus-2', ...DECK.filter((c) => c.piValue === 1).slice(0, 5).map((c) => c.id)].map(C)).pi).toBe(1);
+  });
+});
+
 describe('점수', () => {
   const score = (ids: string[]) => scoreOf(ids.map(C));
   it('3광 3점, 비광 포함 3광 2점, 4광 4점, 5광 15점', () => {
@@ -156,7 +181,7 @@ describe('고/스톱', () => {
 });
 
 describe('AI 전체 판 시뮬레이션', () => {
-  it('500판: 카드 48장 보존, 모든 판이 종료, 손패/더미 동시 소진', () => {
+  it('500판: 카드 50장 보존, 모든 판이 종료', () => {
     const { players, observer } = splitSeats('uncle');
     let wins = 0;
     let nagari = 0;
@@ -183,12 +208,12 @@ describe('AI 전체 판 시뮬레이션', () => {
             s = declareGoStop(s, aiDecideGo(s));
             break;
         }
-        expect(totalCards(s)).toBe(48);
+        expect(totalCards(s)).toBe(50);
       }
       if (s.result!.winnerId) wins++;
       else {
         nagari++;
-        expect(s.deck).toHaveLength(0);
+        expect(s.players.every((p) => p.hand.length === 0)).toBe(true);
       }
     }
     expect(wins + nagari).toBe(500);

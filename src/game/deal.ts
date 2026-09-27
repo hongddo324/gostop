@@ -40,8 +40,8 @@ function fieldHasFourOfMonth(field: HwatuCard[]): boolean {
 }
 
 /**
- * 3인 고스톱 분배: 플레이어당 7장, 바닥 6장, 나머지 21장은 더미.
- * 3인 × 7턴 = 21턴 = 더미 21장이므로 마지막 턴에 손패와 더미가 동시에 소진된다.
+ * 3인 고스톱 분배: 플레이어당 7장, 바닥 6장, 나머지 23장(보너스 2장 포함)은 더미.
+ * 바닥에 보너스패가 깔리면 선(첫 차례)이 가져가고 더미에서 1장을 채운다.
  * 실제 화투 분배 순서(4-3-3 등)는 연출 단계에서 처리하고, 여기서는 결과만 계산한다.
  */
 export function dealGame(
@@ -65,11 +65,17 @@ export function dealGame(
     const playerStates = ordered.map((seat) => ({
       seat,
       hand: sortHand(take(HAND_SIZE)),
-      captured: [],
+      captured: [] as HwatuCard[],
       goCount: 0,
       goScore: 0,
     }));
-    const field = take(FIELD_SIZE);
+    let field = take(FIELD_SIZE);
+    // 바닥의 보너스패 → 선이 가져가고 더미에서 보충 (보충한 패가 또 보너스면 반복)
+    while (field.some((c) => c.isBonus) && cursor < deck.length) {
+      const bonus = field.filter((c) => c.isBonus);
+      playerStates[0]!.captured.push(...bonus);
+      field = [...field.filter((c) => !c.isBonus), ...take(bonus.length)];
+    }
     if (fieldHasFourOfMonth(field) && attempt < 100) continue;
 
     return {
@@ -88,5 +94,7 @@ export function dealGame(
 /** 손패 정렬: 월 오름차순 → 광/열끗/띠/피 순 */
 const TYPE_ORDER = { gwang: 0, yeol: 1, tti: 2, pi: 3 } as const;
 export function sortHand(cards: HwatuCard[]): HwatuCard[] {
-  return [...cards].sort((a, b) => a.month - b.month || TYPE_ORDER[a.type] - TYPE_ORDER[b.type]);
+  // 보너스패는 맨 앞 (먼저 내는 패)
+  const key = (c: HwatuCard) => (c.isBonus ? 0 : c.month);
+  return [...cards].sort((a, b) => key(a) - key(b) || TYPE_ORDER[a.type] - TYPE_ORDER[b.type] || a.id.localeCompare(b.id));
 }

@@ -4,19 +4,27 @@ import FRAMES from '../config/characterFrames.json';
 /** 캐릭터 모션 상태 */
 export type CharacterPose = 'idle' | 'play' | 'cheer' | 'observe';
 
-type FrameName = 'play-1' | 'play-2' | 'play-3' | 'cheer-1' | 'cheer-2' | 'cheer-3';
 type FrameMeta = { width: number; height: number; anchorX: number; anchorY: number; bodyHeight: number };
 
-const frameUrl = (seatId: string, f: FrameName) =>
-  `${import.meta.env.BASE_URL}assets/characters/${seatId}/${f}.webp`;
+/**
+ * 패 치기 8프레임: 1 대기 → 2 고르기 → 3 들기 → 4 높이 들기 → 5 내려치기 → 6 바닥에 탁 → 7 돌아오기 → 8 대기
+ * 'play' 포즈는 2~8 을 PLAY_FRAME_MS 간격으로 한 번 재생한다.
+ */
+export const PLAY_FRAME_MS = 95;
+const PLAY_SEQ = [2, 3, 4, 5, 6, 6, 7, 8];
+/** 카드가 손을 떠나는 시점 (6번 '탁' 프레임) */
+export const PLAY_RELEASE_MS = PLAY_SEQ.indexOf(6) * PLAY_FRAME_MS;
+export const PLAY_TOTAL_MS = PLAY_SEQ.length * PLAY_FRAME_MS;
 
-const ALL_FRAMES: FrameName[] = ['play-1', 'play-2', 'play-3', 'cheer-1', 'cheer-2', 'cheer-3'];
-const CHEER_LOOP: FrameName[] = ['cheer-1', 'cheer-2', 'cheer-3', 'cheer-2'];
+const CHEER_SEQ = ['cheer-1', 'cheer-2', 'cheer-3', 'cheer-2'];
+const ALL_FRAMES = [...Array.from({ length: 8 }, (_, i) => `play-${i + 1}`), 'cheer-1', 'cheer-2', 'cheer-3'];
+
+const frameUrl = (seatId: string, f: string) => `${import.meta.env.BASE_URL}assets/characters/${seatId}/${f}.webp`;
 
 interface Props {
   seatId: string;
   pose: CharacterPose;
-  /** 앉은 자리 기준점(스테이지 좌표) */
+  /** 앉은 자리 기준점 */
   x: number;
   y: number;
   /** 표시 키(px) */
@@ -25,16 +33,16 @@ interface Props {
 
 /**
  * 배경과 분리된 캐릭터 스프라이트.
- *  - idle   : 패 들고 대기 (play-1 ↔ play-3 을 불규칙하게 오가며 자연스럽게)
- *  - play   : 패 내기 (play-2)
- *  - cheer  : 득점 시 좋아하는 모션 루프 (cheer-1→2→3→2)
- *  - observe: 훈수 좌석 — 패 없이 앉아 있는 프레임(cheer-3)
+ *  - idle   : 패 들고 대기 (1 ↔ 8 을 불규칙하게 오가며 자연스럽게)
+ *  - play   : 패를 골라 들어 올렸다가 '탁' 내려치는 8프레임 모션
+ *  - cheer  : 득점 시 좋아하는 모션 루프
+ *  - observe: 훈수 좌석 — 패 없이 앉아 있는 프레임
  */
 export function CharacterSprite({ seatId, pose, x, y, height }: Props) {
   const meta = (FRAMES as Record<string, FrameMeta>)[seatId];
   const frame = useFrame(pose);
 
-  // 첫 전환 시 깜빡임 방지용 프리로드
+  // 모션 중 깜빡임 방지용 프리로드
   useEffect(() => {
     ALL_FRAMES.forEach((f) => {
       const img = new Image();
@@ -61,13 +69,17 @@ export function CharacterSprite({ seatId, pose, x, y, height }: Props) {
   );
 }
 
-function useFrame(pose: CharacterPose): FrameName {
+function useFrame(pose: CharacterPose): string {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
     setTick(0);
     if (pose === 'cheer') {
       const id = setInterval(() => setTick((t) => t + 1), 200);
+      return () => clearInterval(id);
+    }
+    if (pose === 'play') {
+      const id = setInterval(() => setTick((t) => Math.min(t + 1, PLAY_SEQ.length - 1)), PLAY_FRAME_MS);
       return () => clearInterval(id);
     }
     if (pose === 'idle') {
@@ -86,12 +98,12 @@ function useFrame(pose: CharacterPose): FrameName {
 
   switch (pose) {
     case 'play':
-      return 'play-2';
+      return `play-${PLAY_SEQ[Math.min(tick, PLAY_SEQ.length - 1)]}`;
     case 'cheer':
-      return CHEER_LOOP[tick % CHEER_LOOP.length]!;
+      return CHEER_SEQ[tick % CHEER_SEQ.length]!;
     case 'observe':
       return 'cheer-3';
     case 'idle':
-      return tick % 2 === 0 ? 'play-1' : 'play-3';
+      return tick % 2 === 0 ? 'play-1' : 'play-8';
   }
 }
