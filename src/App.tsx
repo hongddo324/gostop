@@ -207,7 +207,7 @@ export default function App() {
 
       {/* HUD */}
       <div className="absolute left-4 top-3 z-40 rounded-xl bg-black/45 px-3 py-1.5 text-white">
-        <div className="text-lg font-black tracking-tight">우리집 고스톱</div>
+        <div className="text-lg font-black tracking-tight">월곡이 고스톱</div>
         <div className="text-[11px] opacity-80">
           {current ? `${current.seat.name} 차례 · 더미 ${game!.deck.length}장` : '3명 플레이 · 광 판 1명 훈수'} ·{' '}
           {settings.speed}배속

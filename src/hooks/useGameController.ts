@@ -119,7 +119,8 @@ export function useGameController(settings: Settings) {
       if (goneRef.current && isObserver) {
         if (!cfg.current.helpMode) return;
         const time = new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
-        setChat((c) => [...c.slice(-9), { seq, text, time }]);
+        // 자동 훈수와 '훈수 듣기'가 같은 말을 연달아 올리지 않도록
+        setChat((c) => (c[c.length - 1]?.text === text ? c : [...c.slice(-9), { seq, text, time }]));
         return;
       }
       setBubbles((b) => ({ ...b, [seatId]: { seq, text } }));

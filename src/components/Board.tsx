@@ -128,34 +128,44 @@ export function Board({ field, deck, captures, highlightMonth, enterFrom, moveMs
     );
   }
 
-  // 득점 패 — 좌석 블록 안에 종류별 그룹. 겹치더라도 카드 폭의 40% 이상은 보이게 간격을 둔다
+  // 득점 패 — 좌석 블록 안에 종류별 그룹. 겹치더라도 카드 짧은 변의 55% 이상은 보이게 간격을 둔다
   const badges: { key: string; x: number; y: number; text: string }[] = [];
   for (const { position, name, cards } of captures) {
     const rotate = PILE_ROTATION[position];
+    const sideways = Math.abs(rotate) === 90;
+    // 화면에 보이는 카드 모양 (90° 회전이면 가로로 누움)
+    const vw = sideways ? PILE_CARD.h : PILE_CARD.w;
+    const vh = sideways ? PILE_CARD.w : PILE_CARD.h;
     for (const type of TYPES) {
       const pile = cards.filter((c) => c.type === type);
       if (pile.length === 0) continue;
       const rect: PileRect = CAPTURE_LAYOUT[position][type];
       const inspect = () => onInspect(`${name} · ${TYPE_NAME[type]} ${pile.length}장`, pile);
-      const offsets = type === 'pi' ? piStackOffsets(pile.length, rect.w) : rowOffsets(pile.length, rect.w);
-      pile.forEach((card, i) =>
+      const along = rect.axis === 'x' ? vw : vh;
+      const length = rect.axis === 'x' ? rect.w : rect.h;
+      const offs = stackOffsets(pile.length, length, along, type === 'pi');
+      const visual = offs.map((o) => (rect.axis === 'x' ? { x: o.a, y: o.b } : { x: o.b, y: o.a }));
+      pile.forEach((card, i) => {
+        const vx = rect.x + visual[i]!.x;
+        const vy = rect.y + visual[i]!.y;
         placed.push({
           card,
-          x: rect.x + offsets[i]!.x,
-          y: rect.y + offsets[i]!.y,
+          // 회전은 카드 중심 기준 → 보이는 상자 중심에 원래 크기 상자를 맞춘다
+          x: vx + (vw - PILE_CARD.w) / 2,
+          y: vy + (vh - PILE_CARD.h) / 2,
           w: PILE_CARD.w,
           h: PILE_CARD.h,
           z: 60 + i,
           zone: `pile-${position}`,
           rotate,
           onClick: inspect,
-        }),
-      );
-      const last = offsets[offsets.length - 1]!;
+        });
+      });
+      const last = visual[visual.length - 1]!;
       const count = type === 'pi' ? pile.reduce((n, c) => n + c.piValue, 0) : pile.length;
       badges.push({
         key: `${position}-${type}`,
-        x: rect.x + last.x + PILE_CARD.w - 8,
+        x: rect.x + last.x + vw - 10,
         y: rect.y + last.y - 7,
         text: `${TYPE_NAME[type]} ${count}`,
       });
@@ -257,27 +267,26 @@ function PlaneCard({
 }
 
 /**
- * 한 줄 겹침 배치: 폭 안에 맞추되 최소 PILE_STEP.min 만큼은 보이게.
- * 장수가 많아 폭을 넘으면 두 번째 줄로 내려 살짝 어긋나게 쌓는다.
+ * 그룹 안 겹침 배치 (쌓는 방향 a, 수직 방향 b).
+ *  - 일반: 길이 안에 맞추되 최소 PILE_STEP.min 만큼은 보이게. 넘치면 다음 줄로 살짝 어긋나게.
+ *  - 피  : 5장씩 묶음(살짝 어긋나게)으로 쌓고 묶음끼리 간격을 둔다.
  */
-function rowOffsets(n: number, width: number): { x: number; y: number }[] {
-  const fit = n > 1 ? (width - PILE_CARD.w) / (n - 1) : 0;
+function stackOffsets(n: number, length: number, along: number, isPi: boolean): { a: number; b: number }[] {
+  if (isPi) {
+    const stacks = Math.ceil(n / PI_STACK.size);
+    const fit = stacks > 1 ? (length - along - PI_STACK.inner * (PI_STACK.size - 1)) / (stacks - 1) : 0;
+    const gap = Math.max(12, Math.min(PI_STACK.gap, fit));
+    return Array.from({ length: n }, (_, i) => {
+      const s = Math.floor(i / PI_STACK.size);
+      const k = i % PI_STACK.size;
+      return { a: s * gap + k * PI_STACK.inner, b: k * 1.5 };
+    });
+  }
+  const fit = n > 1 ? (length - along) / (n - 1) : 0;
   const step = Math.min(PILE_STEP.max, Math.max(PILE_STEP.min, fit));
-  const perRow = Math.max(1, Math.floor((width - PILE_CARD.w) / step) + 1);
+  const perLine = Math.max(1, Math.floor((length - along) / step) + 1);
   return Array.from({ length: n }, (_, i) => ({
-    x: (i % perRow) * step + Math.floor(i / perRow) * (step / 2),
-    y: Math.floor(i / perRow) * 12,
+    a: (i % perLine) * step + Math.floor(i / perLine) * (step / 2),
+    b: Math.floor(i / perLine) * 10,
   }));
-}
-
-/** 피: 5장씩 묶음(살짝 어긋나게)으로 쌓고, 묶음끼리는 간격을 둔다 */
-function piStackOffsets(n: number, width: number): { x: number; y: number }[] {
-  const stacks = Math.ceil(n / PI_STACK.size);
-  const fit = stacks > 1 ? (width - PILE_CARD.w - PI_STACK.inner * (PI_STACK.size - 1)) / (stacks - 1) : 0;
-  const gap = Math.max(12, Math.min(PI_STACK.gap, fit));
-  return Array.from({ length: n }, (_, i) => {
-    const s = Math.floor(i / PI_STACK.size);
-    const k = i % PI_STACK.size;
-    return { x: s * gap + k * PI_STACK.inner, y: k * 2 };
-  });
 }

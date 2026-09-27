@@ -1,4 +1,4 @@
-# 우리집 고스톱 (Family Go-Stop)
+# 월곡이 고스톱 (Family Go-Stop)
 
 가족 분위기의 2D 웹 고스톱. Vite + React + TypeScript + Tailwind CSS v4 → 추후 Capacitor로 Android APK 빌드.
 
