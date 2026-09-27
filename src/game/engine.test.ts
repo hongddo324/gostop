@@ -114,10 +114,10 @@ describe('특수 상황', () => {
 
 describe('보너스패', () => {
   it('손에서 내면 바로 득점 패로 가고, 더미 1장을 손에 받아 같은 차례에 한 번 더 낸다', () => {
-    const s = playCard(mk({ hand: ['bonus-3', '01-gwang'], field: ['05-pi-1'], deck: ['07-pi-1', '09-pi-1'] }), 'bonus-3');
+    const s = playCard(mk({ hand: ['bonus-1', '01-gwang'], field: ['05-pi-1'], deck: ['07-pi-1', '09-pi-1'] }), 'bonus-1');
     expect(s.phase).toBe('play');
     expect(s.current).toBe(0);
-    expect(capturedIds(s)).toEqual(['bonus-3']);
+    expect(capturedIds(s)).toEqual(['bonus-1']);
     expect(s.players[0]!.hand.map((c) => c.id).sort()).toEqual(['01-gwang', '07-pi-1']);
     expect(s.lastReport!.specials).toEqual(['bonus']);
     // 이어서 일반 패를 내고 턴 종료
@@ -132,8 +132,9 @@ describe('보너스패', () => {
     expect(s.lastReport!.specials).toContain('bonus');
   });
 
-  it('쓰리피는 피 3장 값', () => {
-    expect(scoreOf(['bonus-3', 'bonus-2', ...DECK.filter((c) => c.piValue === 1).slice(0, 5).map((c) => c.id)].map(C)).pi).toBe(1);
+  it('보너스패 2장은 각각 쌍피(피 2장 값)', () => {
+    // 보너스 2장(4) + 일반 피 6장(6) = 10장 → 1점
+    expect(scoreOf(['bonus-1', 'bonus-2', ...DECK.filter((c) => c.piValue === 1).slice(0, 6).map((c) => c.id)].map(C)).pi).toBe(1);
   });
 });
 

@@ -17,9 +17,9 @@ export interface HwatuCard {
   readonly name: string;
   /** 띠인 경우 세부 종류 */
   readonly ribbon?: RibbonKind;
-  /** 피 점수 (일반 피 1, 쌍피 2, 쓰리피 3). 피가 아니면 0 */
-  readonly piValue: 0 | 1 | 2 | 3;
-  /** 보너스패 (쌍피/쓰리피) */
+  /** 피 점수 (일반 피 1, 쌍피 2). 피가 아니면 0 */
+  readonly piValue: 0 | 1 | 2;
+  /** 보너스패 (쌍피 2장) */
   readonly isBonus?: boolean;
   /** 고도리 새 (2·4·8월 열끗) */
   readonly isGodori?: boolean;

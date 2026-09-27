@@ -38,7 +38,7 @@ export interface HintInput {
 /** 위험 회피 설명을 붙일 최소 뻑 확률 */
 const RISK_NOTE_PROB = 0.12;
 
-const typeName = (c: HwatuCard) => (c.piValue === 2 ? '쌍피' : c.piValue === 3 ? '쓰리피' : c.type === 'pi' ? '일반 피' : CARD_TYPE_LABEL[c.type]);
+const typeName = (c: HwatuCard) => (c.piValue === 2 ? '쌍피' : c.type === 'pi' ? '일반 피' : CARD_TYPE_LABEL[c.type]);
 const round = (n: number) => Math.round(n * 10) / 10;
 export function getHintExplanation(input: HintInput): HintExplanation {
   const { hand, field, opponents, deckRemainingCount, myCaptured = [] } = input;

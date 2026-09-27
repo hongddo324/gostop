@@ -80,10 +80,10 @@ function buildCard(month: Exclude<Month, 13>, spec: Spec, idSuffix: string): Hwa
   }
 }
 
-/** 보너스패 2장: 쌍피(피 2장 값), 쓰리피(피 3장 값) */
+/** 보너스패 2장: 둘 다 쌍피 (피 2장 값) */
 export const BONUS_CARDS: readonly HwatuCard[] = [
+  { id: 'bonus-1', month: 13, type: 'pi', name: '보너스 쌍피', piValue: 2, isBonus: true },
   { id: 'bonus-2', month: 13, type: 'pi', name: '보너스 쌍피', piValue: 2, isBonus: true },
-  { id: 'bonus-3', month: 13, type: 'pi', name: '보너스 쓰리피', piValue: 3, isBonus: true },
 ];
 
 /** 전체 카드 생성: 표준 48장 + 보너스 2장 = 50장 (순서 고정, 불변) */

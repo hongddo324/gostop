@@ -11,7 +11,7 @@ describe('createDeck', () => {
     const all = createDeck();
     expect(all).toHaveLength(50);
     expect(new Set(all.map((c) => c.id)).size).toBe(50);
-    expect(all.filter((c) => c.isBonus).map((c) => c.piValue)).toEqual([2, 3]);
+    expect(all.filter((c) => c.isBonus).map((c) => c.piValue)).toEqual([2, 2]);
   });
 
   it('월별 4장', () => {
