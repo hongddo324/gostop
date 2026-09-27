@@ -51,7 +51,7 @@ src/
     HintPanel.tsx          도움 모드 상세 훈수 패널
     KakaoChat.tsx          광 판 사람 빈자리의 카톡 스타일 훈수 채팅 (프로필 사진 + 말풍선 + 시각)
     MoneyStack.tsx         가진 돈을 지폐 묶음(오만원·만원·오천원·천원)으로 표시
-    CharacterSprite.tsx    배경과 분리된 캐릭터 스프라이트 + 모션(idle / play 8프레임 '탁' / cheer / sad 아쉬움 / leave 나가기 / enter 들어오기 / gone)
+    CharacterSprite.tsx    배경과 분리된 캐릭터 스프라이트 + 모션(idle / rest 쉬는 대기 / play 8프레임 '탁' / cheer / sad 아쉬움 / leave 나가기 / enter 들어오기 / gone)
     MyHand.tsx             장면 아래 내 손패 전용 패널 (탭=선택·같은 월 강조, 한 번 더 탭/‘내기’=내기)
     Card.tsx               카드 (이미지 → 실패 시 텍스트 카드 fallback)
 ```
@@ -61,8 +61,8 @@ src/
 | 용도 | 경로 |
 | --- | --- |
 | 배경 | `public/assets/bg_livingroom.webp` (1672×941, 16:9 — 거실+모포(앞쪽으로 넓힘), 인물 없음) |
-| 캐릭터 원본 시트 | `assets-src/motion_{seatId}.webp`(패 치기 8프레임, 2×4), `assets-src/characters_cheer.webp`(득점 기쁨 3프레임 — 행: 외할머니/이모부님/장인어른), `assets-src/sad_{seatId}.webp`(아쉬움 8프레임, 2×4), `assets-src/leave_{seatId}.webp`(광 팔고 나가기 8프레임, 2×4) |
-| 캐릭터 프레임 | `public/assets/characters/{seatId}/{play-1..8,cheer-1..3,sad-1..8,leave-1..8}.webp` ← `python3 scripts/slice_characters.py` (다리 영역 상호상관으로 프레임 정렬) |
+| 캐릭터 원본 시트 | `assets-src/motion_{seatId}.webp`(패 치기 8프레임, 2×4), `assets-src/characters_cheer.webp`(득점 기쁨 3프레임 — 행: 외할머니/이모부님/장인어른), `assets-src/sad_{seatId}.webp`(아쉬움 8프레임, 2×4), `assets-src/leave_{seatId}.webp`(광 팔고 나가기 8프레임, 2×4), `assets-src/rest_{seatId}.webp`(패 없이 쉬는 대기 8프레임, 2×4) |
+| 캐릭터 프레임 | `public/assets/characters/{seatId}/{play-1..8,cheer-1..3,sad-1..8,leave-1..8,rest-1..8}.webp` ← `python3 scripts/slice_characters.py` (다리 영역 상호상관으로 프레임 정렬) |
 | 훈수 채팅 프로필 | `public/assets/profiles/{grandma,uncle,father-in-law}.webp` (png/jpg 가능, 없으면 이름 첫 글자 아바타) |
 | 카드 앞면 | `public/assets/cards/{cardId}.webp` (예: `01-gwang.webp`, `03-tti.webp`, `11-pi-1.webp`) — 보너스패는 코드로 그림 |
 | 지폐 | `public/assets/money/{1000,5000,10000,50000}.webp` ← `assets-src/money_sheet.png` + `python3 scripts/slice_money.py` |

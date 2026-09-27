@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import FRAMES from '../config/characterFrames.json';
 
 /** 캐릭터 모션 상태 */
-export type CharacterPose = 'idle' | 'play' | 'cheer' | 'observe' | 'sad' | 'leave' | 'enter' | 'gone';
+export type CharacterPose = 'idle' | 'rest' | 'play' | 'cheer' | 'observe' | 'sad' | 'leave' | 'enter' | 'gone';
 
 type FrameMeta = { width: number; height: number; anchorX: number; anchorY: number; bodyHeight: number };
 
@@ -39,6 +39,7 @@ const ALL_FRAMES = [
   'cheer-3',
   ...Array.from({ length: 8 }, (_, i) => `sad-${i + 1}`),
   ...Array.from({ length: 8 }, (_, i) => `leave-${i + 1}`),
+  ...Array.from({ length: 8 }, (_, i) => `rest-${i + 1}`),
 ];
 
 const frameUrl = (seatId: string, f: string) => `${import.meta.env.BASE_URL}assets/characters/${seatId}/${f}.webp`;
@@ -60,6 +61,7 @@ interface Props {
 /**
  * 배경과 분리된 캐릭터 스프라이트.
  *  - idle   : 패 들고 대기 (1 ↔ 8 을 불규칙하게 오가며 자연스럽게)
+ *  - rest   : 패 없이 쉬는 대기 8프레임 — 판 시작 전·판 종료 후·손패를 다 냈을 때
  *  - play   : 패를 골라 들어 올렸다가 '탁' 내려치는 8프레임 모션
  *  - cheer  : 득점 시 좋아하는 모션 루프
  *  - observe: 훈수 좌석 — 패 없이 앉아 있는 프레임
@@ -125,6 +127,22 @@ function useFrame(pose: CharacterPose, frameMs: number): string {
       const id = setInterval(() => setTick((t) => Math.min(t + 1, PLAY_SEQ.length - 1)), frameMs);
       return () => clearInterval(id);
     }
+    if (pose === 'rest') {
+      // 쉬는 대기: 이웃 프레임으로 천천히 움직이다 가끔 다른 표정으로 넘어가고, 중간중간 멈춰 있는다
+      let timer: ReturnType<typeof setTimeout>;
+      let cur = Math.floor(Math.random() * 8);
+      setTick(cur);
+      const next = () => {
+        const r = Math.random();
+        if (r < 0.2) cur = Math.floor(Math.random() * 8);
+        else cur = Math.min(7, Math.max(0, cur + (r < 0.6 ? 1 : -1)));
+        setTick(cur);
+        const hold = Math.random() < 0.3 ? 1400 + Math.random() * 1800 : 320 + Math.random() * 280;
+        timer = setTimeout(next, hold);
+      };
+      timer = setTimeout(next, 600 + Math.random() * 1200);
+      return () => clearTimeout(timer);
+    }
     if (pose === 'idle') {
       // 2~4.5초 간격으로 대기 자세를 바꿔 살아있는 느낌
       let timer: ReturnType<typeof setTimeout>;
@@ -161,6 +179,8 @@ function useFrame(pose: CharacterPose, frameMs: number): string {
       return 'play-1';
     case 'observe':
       return 'cheer-3';
+    case 'rest':
+      return `rest-${(tick % 8) + 1}`;
     case 'idle':
       return tick % 2 === 0 ? 'play-1' : 'play-8';
   }

@@ -121,7 +121,9 @@ export default function App() {
           const place = CHARACTER_PLACEMENT[seat.position];
           if (!place) return null;
           // 광 판 사람은 나가기 모션 후 자리에서 사라진다 (gone)
-          const pose = motion[seat.id] ?? (seat.id === observer?.id ? 'gone' : 'idle');
+          // 패를 들고 있지 않을 때(판 시작 전·판 종료·손패 소진)는 쉬는 대기 모션
+          const holding = !!game && game.phase !== 'end' && (playerOf(seat.id)?.hand.length ?? 0) > 0;
+          const pose = motion[seat.id] ?? (seat.id === observer?.id ? 'gone' : holding ? 'idle' : 'rest');
           return <CharacterSprite key={seat.id} seatId={seat.id} pose={pose} frameMs={timing.playFrame} exitDx={EXIT_DX[seat.position]} {...place} />;
         })}
 

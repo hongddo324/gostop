@@ -7,9 +7,10 @@
   assets-src/characters_cheer.webp  득점 기쁨 3프레임 (3행 × 3열) — 행: 외할머니 / 이모부님(가운데) / 장인어른(오른쪽)
   assets-src/sad_{seatId}.webp      남이 점수 가져갈 때 아쉬워하는 8프레임 (2행 × 4열, 행 우선)
   assets-src/leave_{seatId}.webp    광 팔고 자리에서 일어나 나가는 8프레임 (앉음 → 일어섬 → 걸어 나감)
+  assets-src/rest_{seatId}.webp     패 없이 쉬는 대기 8프레임 (두리번·미소·고개 끄덕 등)
 
 출력:
-  public/assets/characters/{seatId}/{play-1..8,cheer-1..3,sad-1..8,leave-1..8}.webp
+  public/assets/characters/{seatId}/{play-1..8,cheer-1..3,sad-1..8,leave-1..8,rest-1..8}.webp
   src/config/characterFrames.json   캐릭터별 캔버스 크기와 기준점(대기 프레임의 다리 하단 중앙)
 
 정렬 방식:
@@ -151,6 +152,10 @@ def main():
         ks = leg_width(ref) / float(np.median([leg_width(f) for f in sad]))
         sad = [resize(f, ks) for f in sad]
         print(f"{seat}: cheer scale {k:.3f}, sad scale {ks:.3f}")
+        rest = extract(SRC / f"rest_{seat}.webp", 2, 4)
+        kr = leg_width(ref) / float(np.median([leg_width(f) for f in rest]))
+        rest = [resize(f, kr) for f in rest]
+        print(f"{seat}: rest scale {kr:.3f}")
 
         leave = extract(SRC / f"leave_{seat}.webp", 2, 4)
         kl = leg_width(ref) / leg_width(leave[0])  # 1프레임(앉은 자세) 기준 크기 보정
@@ -161,6 +166,7 @@ def main():
             [(f"play-{i + 1}", f) for i, f in enumerate(play)]
             + [(f"cheer-{i + 1}", f) for i, f in enumerate(cheer)]
             + [(f"sad-{i + 1}", f) for i, f in enumerate(sad)]
+            + [(f"rest-{i + 1}", f) for i, f in enumerate(rest)]
         )
         placed = [(name, f, *align_offset(ref, f)) for name, f in named]
         placed += [(f"leave-{i + 1}", f, dx, dy) for i, (f, (dx, dy)) in enumerate(zip(leave, align_leave(ref, leave)))]
