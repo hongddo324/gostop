@@ -36,6 +36,8 @@ META = ROOT / "src" / "config" / "characterFrames.json"
 
 SEATS = ["grandma", "uncle", "father-in-law"]
 CHEER_ROW = {"grandma": 0, "uncle": 1, "father-in-law": 2}
+# 기쁨 전용 시트가 없는 캐릭터는 패 치기 프레임으로 기쁨을 만든다 (0부터: 7번=주먹 불끈, 8번=대기)
+CHEER_FROM_PLAY = {"father-in-law": [6, 7, 6]}
 
 ALPHA_MIN = 16
 LEG_BAND = (0.72, 0.92)  # 기준 프레임 높이 대비 다리 영역 (손이 내려오는 맨 아래는 제외)
@@ -145,7 +147,10 @@ def main():
     for seat in SEATS:
         play = extract(SRC / f"motion_{seat}.webp", 2, 4)
         ref = play[0]
-        cheer = cheer_sheet[CHEER_ROW[seat] * 3 : CHEER_ROW[seat] * 3 + 3]
+        if seat in CHEER_FROM_PLAY:
+            cheer = [play[i] for i in CHEER_FROM_PLAY[seat]]
+        else:
+            cheer = cheer_sheet[CHEER_ROW[seat] * 3 : CHEER_ROW[seat] * 3 + 3]
         k = leg_width(ref) / float(np.median([leg_width(f) for f in cheer]))
         cheer = [resize(f, k) for f in cheer]
         sad = extract(SRC / f"sad_{seat}.webp", 2, 4)
