@@ -2,7 +2,8 @@
 
 | 버전 | 파일 | 크기 | 비고 |
 | --- | --- | --- | --- |
-| **v1.3** | [wolgok-gostop-v1.3.apk](./wolgok-gostop-v1.3.apk) | 10.3MB | 장인어른 캐릭터 모션 전면 교체(실제 모습 기반) |
+| **v1.4** | [wolgok-gostop-v1.4.apk](./wolgok-gostop-v1.4.apk) | 10.3MB | 장인어른 전용 기쁨 모션 8프레임 적용 |
+| v1.3 | [wolgok-gostop-v1.3.apk](./wolgok-gostop-v1.3.apk) | 10.3MB | 장인어른 캐릭터 모션 전면 교체(실제 모습 기반) |
 | v1.2 | [wolgok-gostop-v1.2.apk](./wolgok-gostop-v1.2.apk) | 10.3MB | 상대별 난이도 설정(외할머니·이모부님·장인어른 각각) |
 | v1.1 | [wolgok-gostop-v1.1.apk](./wolgok-gostop-v1.1.apk) | 10.3MB | 타짜 AI 강화(몬테카를로), 선 = 직전 판 승자, 설정에서 사람별 +1만원 |
 | v1.0 | [wolgok-gostop-v1.0.apk](./wolgok-gostop-v1.0.apk) | 10.3MB | 디버그 서명 (직접 설치용, 스토어 등록 불가) |

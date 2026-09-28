@@ -4,7 +4,15 @@ import FRAMES from '../config/characterFrames.json';
 /** 캐릭터 모션 상태 */
 export type CharacterPose = 'idle' | 'rest' | 'play' | 'cheer' | 'observe' | 'sad' | 'leave' | 'enter' | 'gone';
 
-type FrameMeta = { width: number; height: number; anchorX: number; anchorY: number; bodyHeight: number };
+type FrameMeta = {
+  width: number;
+  height: number;
+  anchorX: number;
+  anchorY: number;
+  bodyHeight: number;
+  /** 기쁨 프레임 수 (공용 시트 3, 전용 시트 8) */
+  cheerFrames?: number;
+};
 
 /**
  * 패 치기 8프레임: 1 대기 → 2 고르기 → 3 들기 → 4 높이 들기 → 5 내려치기 → 6 바닥에 탁 → 7 돌아오기 → 8 대기
@@ -15,7 +23,11 @@ const PLAY_SEQ = [2, 3, 4, 5, 6, 6, 7, 8];
 export const playReleaseMs = (frameMs: number) => PLAY_SEQ.indexOf(6) * frameMs;
 export const playTotalMs = (frameMs: number) => PLAY_SEQ.length * frameMs;
 
-const CHEER_SEQ = ['cheer-1', 'cheer-2', 'cheer-3', 'cheer-2'];
+/**
+ * 기쁨 루프: 3프레임이면 1→2→3→2, 전용 8프레임 시트면 1(미소) → 3~5(주먹 불끈) → 6(가슴) → 다시 내려오는 왕복
+ */
+const cheerSeq = (n: number) =>
+  n >= 8 ? [1, 2, 3, 4, 5, 6, 5, 4, 3, 2] : Array.from({ length: n }, (_, i) => i + 1).concat(n > 2 ? [n - 1] : []);
 /** 아쉬움 8프레임: 1 멍 → 2~3 말하며 손짓 → 4~6 볼 감싸고 한숨 → 7 손짓 → 8 체념 */
 const SAD_SEQ = [1, 2, 3, 4, 5, 6, 5, 6, 7, 8];
 /** 아쉬움 모션 1프레임 시간 (배속 무관 — 표정을 읽을 수 있게) */
@@ -32,11 +44,9 @@ const WALK_STEP_MS = 260;
 export const LEAVE_TOTAL_MS = 8 * LEAVE_FRAME_MS + WALK_MS;
 export const ENTER_TOTAL_MS = WALK_MS + 6 * LEAVE_FRAME_MS;
 
-const ALL_FRAMES = [
+const allFrames = (cheerN: number) => [
   ...Array.from({ length: 8 }, (_, i) => `play-${i + 1}`),
-  'cheer-1',
-  'cheer-2',
-  'cheer-3',
+  ...Array.from({ length: cheerN }, (_, i) => `cheer-${i + 1}`),
   ...Array.from({ length: 8 }, (_, i) => `sad-${i + 1}`),
   ...Array.from({ length: 8 }, (_, i) => `leave-${i + 1}`),
   ...Array.from({ length: 8 }, (_, i) => `rest-${i + 1}`),
@@ -71,16 +81,17 @@ interface Props {
  */
 export function CharacterSprite({ seatId, pose, x, y, height, frameMs, exitDx }: Props) {
   const meta = (FRAMES as Record<string, FrameMeta>)[seatId];
-  const frame = useFrame(pose, frameMs);
+  const cheerN = meta?.cheerFrames ?? 3;
+  const frame = useFrame(pose, frameMs, cheerN);
   const walk = useWalk(pose, exitDx);
 
   // 모션 중 깜빡임 방지용 프리로드
   useEffect(() => {
-    ALL_FRAMES.forEach((f) => {
+    allFrames(cheerN).forEach((f) => {
       const img = new Image();
       img.src = frameUrl(seatId, f);
     });
-  }, [seatId]);
+  }, [seatId, cheerN]);
 
   if (!meta || pose === 'gone') return null;
   const scale = height / meta.bodyHeight;
@@ -104,13 +115,13 @@ export function CharacterSprite({ seatId, pose, x, y, height, frameMs, exitDx }:
   );
 }
 
-function useFrame(pose: CharacterPose, frameMs: number): string {
+function useFrame(pose: CharacterPose, frameMs: number, cheerN: number): string {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
     setTick(0);
     if (pose === 'cheer') {
-      const id = setInterval(() => setTick((t) => t + 1), 230);
+      const id = setInterval(() => setTick((t) => t + 1), cheerN >= 8 ? 150 : 230);
       return () => clearInterval(id);
     }
     if (pose === 'leave' || pose === 'enter') {
@@ -162,7 +173,10 @@ function useFrame(pose: CharacterPose, frameMs: number): string {
     case 'play':
       return `play-${PLAY_SEQ[Math.min(tick, PLAY_SEQ.length - 1)]}`;
     case 'cheer':
-      return CHEER_SEQ[tick % CHEER_SEQ.length]!;
+    {
+      const seq = cheerSeq(cheerN);
+      return `cheer-${seq[tick % seq.length]}`;
+    }
     case 'sad':
       return `sad-${SAD_SEQ[Math.min(tick, SAD_SEQ.length - 1)]}`;
     case 'leave': {

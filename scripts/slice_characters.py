@@ -5,12 +5,13 @@
   assets-src/motion_{seatId}.webp   화투 치는 모션 8프레임 (2행 × 4열, 행 우선)
       1 대기 → 2 패 고르기 → 3 들어 올리기 → 4 높이 들기 → 5 내려치기 → 6 바닥에 탁 → 7 돌아오기 → 8 대기
   assets-src/characters_cheer.webp  득점 기쁨 3프레임 (3행 × 3열) — 행: 외할머니 / 이모부님(가운데) / 장인어른(오른쪽)
+  assets-src/cheer_{seatId}.webp      (있으면) 캐릭터 전용 기쁨 8프레임 (2×4) — 공용 시트 대신 사용
   assets-src/sad_{seatId}.webp      남이 점수 가져갈 때 아쉬워하는 8프레임 (2행 × 4열, 행 우선)
   assets-src/leave_{seatId}.webp    광 팔고 자리에서 일어나 나가는 8프레임 (앉음 → 일어섬 → 걸어 나감)
   assets-src/rest_{seatId}.webp     패 없이 쉬는 대기 8프레임 (두리번·미소·고개 끄덕 등)
 
 출력:
-  public/assets/characters/{seatId}/{play-1..8,cheer-1..3,sad-1..8,leave-1..8,rest-1..8}.webp
+  public/assets/characters/{seatId}/{play-1..8,cheer-1..N,sad-1..8,leave-1..8,rest-1..8}.webp
   src/config/characterFrames.json   캐릭터별 캔버스 크기와 기준점(대기 프레임의 다리 하단 중앙)
 
 정렬 방식:
@@ -36,8 +37,7 @@ META = ROOT / "src" / "config" / "characterFrames.json"
 
 SEATS = ["grandma", "uncle", "father-in-law"]
 CHEER_ROW = {"grandma": 0, "uncle": 1, "father-in-law": 2}
-# 기쁨 전용 시트가 없는 캐릭터는 패 치기 프레임으로 기쁨을 만든다 (0부터: 7번=주먹 불끈, 8번=대기)
-CHEER_FROM_PLAY = {"father-in-law": [6, 7, 6]}
+# 캐릭터별 기쁨 전용 시트(8프레임, 2×4)가 있으면 공용 시트 대신 사용: assets-src/cheer_{seatId}.webp
 
 ALPHA_MIN = 16
 LEG_BAND = (0.72, 0.92)  # 기준 프레임 높이 대비 다리 영역 (손이 내려오는 맨 아래는 제외)
@@ -147,8 +147,8 @@ def main():
     for seat in SEATS:
         play = extract(SRC / f"motion_{seat}.webp", 2, 4)
         ref = play[0]
-        if seat in CHEER_FROM_PLAY:
-            cheer = [play[i] for i in CHEER_FROM_PLAY[seat]]
+        if (SRC / f"cheer_{seat}.webp").exists():
+            cheer = extract(SRC / f"cheer_{seat}.webp", 2, 4)
         else:
             cheer = cheer_sheet[CHEER_ROW[seat] * 3 : CHEER_ROW[seat] * 3 + 3]
         k = leg_width(ref) / float(np.median([leg_width(f) for f in cheer]))
@@ -193,7 +193,7 @@ def main():
             canvas = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
             canvas.alpha_composite(Image.fromarray(f), (dx - x0, dy - y0))
             canvas.save(OUT / seat / f"{name}.webp", quality=86, method=6)
-        meta[seat] = {"width": cw, "height": ch, "anchorX": anchor[0], "anchorY": anchor[1], "bodyHeight": int(ref.shape[0])}
+        meta[seat] = {"width": cw, "height": ch, "anchorX": anchor[0], "anchorY": anchor[1], "bodyHeight": int(ref.shape[0]), "cheerFrames": len(cheer)}
         print(seat, meta[seat], "offsets", [(n, dx, dy) for n, _, dx, dy in placed])
 
     META.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

@@ -4,20 +4,23 @@
     "height": 677,
     "anchorX": 217,
     "anchorY": 646,
-    "bodyHeight": 416
+    "bodyHeight": 416,
+    "cheerFrames": 3
   },
   "uncle": {
     "width": 430,
     "height": 654,
     "anchorX": 214,
     "anchorY": 631,
-    "bodyHeight": 406
+    "bodyHeight": 406,
+    "cheerFrames": 3
   },
   "father-in-law": {
     "width": 455,
-    "height": 565,
+    "height": 575,
     "anchorX": 254,
     "anchorY": 549,
-    "bodyHeight": 399
+    "bodyHeight": 399,
+    "cheerFrames": 8
   }
 }

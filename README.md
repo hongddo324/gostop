@@ -76,8 +76,8 @@ src/
 | 용도 | 경로 |
 | --- | --- |
 | 배경 | `public/assets/bg_livingroom.webp` (1672×941, 16:9 — 거실+모포(앞쪽으로 넓힘), 인물 없음) |
-| 캐릭터 원본 시트 | `assets-src/motion_{seatId}.webp`(패 치기 8프레임, 2×4), `assets-src/characters_cheer.webp`(득점 기쁨 3프레임 — 행: 외할머니/이모부님/장인어른), `assets-src/sad_{seatId}.webp`(아쉬움 8프레임, 2×4), `assets-src/leave_{seatId}.webp`(광 팔고 나가기 8프레임, 2×4), `assets-src/rest_{seatId}.webp`(패 없이 쉬는 대기 8프레임, 2×4) |
-| 캐릭터 프레임 | `public/assets/characters/{seatId}/{play-1..8,cheer-1..3,sad-1..8,leave-1..8,rest-1..8}.webp` ← `python3 scripts/slice_characters.py` (다리 영역 상호상관으로 프레임 정렬) |
+| 캐릭터 원본 시트 | `assets-src/motion_{seatId}.webp`(패 치기 8프레임, 2×4), `assets-src/characters_cheer.webp`(득점 기쁨 3프레임 — 행: 외할머니/이모부님/장인어른), `assets-src/cheer_{seatId}.webp`(있으면 캐릭터 전용 기쁨 8프레임, 2×4 — 현재 장인어른), `assets-src/sad_{seatId}.webp`(아쉬움 8프레임, 2×4), `assets-src/leave_{seatId}.webp`(광 팔고 나가기 8프레임, 2×4), `assets-src/rest_{seatId}.webp`(패 없이 쉬는 대기 8프레임, 2×4) |
+| 캐릭터 프레임 | `public/assets/characters/{seatId}/{play-1..8,cheer-1..N,sad-1..8,leave-1..8,rest-1..8}.webp` ← `python3 scripts/slice_characters.py` (다리 영역 상호상관으로 프레임 정렬) |
 | 훈수 채팅 프로필 | `public/assets/profiles/{grandma,uncle,father-in-law}.webp` (png/jpg 가능, 없으면 이름 첫 글자 아바타) |
 | 카드 앞면 | `public/assets/cards/{cardId}.webp` (예: `01-gwang.webp`, `03-tti.webp`, `11-pi-1.webp`) — 보너스패는 코드로 그림 |
 | 지폐 | `public/assets/money/{1000,5000,10000,50000}.webp` ← `assets-src/money_sheet.png` + `python3 scripts/slice_money.py` |
