@@ -24,6 +24,8 @@ interface Props {
   /** 내 돈 / 직전 판 증감 */
   money: number;
   moneyDelta?: number;
+  /** 보너스패를 내고 더미에서 방금 받은 패 (NEW 표시) */
+  newCardId?: string;
 }
 
 /**
@@ -43,6 +45,7 @@ export function MyHand({
   recommendedId,
   money,
   moneyDelta,
+  newCardId,
 }: Props) {
   if (soldHand) return <SoldPanel hand={soldHand} />;
   const selected = cards.find((c) => c.id === selectedId);
@@ -84,14 +87,20 @@ export function MyHand({
           )
         ) : (
           cards.map((c) => (
-            <Card
-              key={c.id}
-              card={c}
-              size={HAND_CARD}
-              selected={c.id === selectedId}
-              className={`${myTurn ? '' : 'brightness-90'} ${c.id === recommendedId && c.id !== selectedId ? 'ring-4 ring-emerald-400' : ''}`}
-              onClick={() => (myTurn && c.id === selectedId ? onPlay(c) : onSelect(c))}
-            />
+            <div key={c.id} className="relative">
+              <Card
+                card={c}
+                size={HAND_CARD}
+                selected={c.id === selectedId}
+                className={`${myTurn ? '' : 'brightness-90'} ${c.id === recommendedId && c.id !== selectedId ? 'ring-4 ring-emerald-400' : ''} ${c.id === newCardId && c.id !== selectedId ? 'ring-4 ring-sky-400' : ''}`}
+                onClick={() => (myTurn && c.id === selectedId ? onPlay(c) : onSelect(c))}
+              />
+              {c.id === newCardId && (
+                <span className="pointer-events-none absolute -top-2 left-1/2 z-10 -translate-x-1/2 animate-[pop_.25s_ease-out] rounded-full bg-sky-500 px-1.5 text-[10px] font-black text-white shadow">
+                  NEW
+                </span>
+              )}
+            </div>
           ))
         )}
       </div>

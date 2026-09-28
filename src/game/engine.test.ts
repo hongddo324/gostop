@@ -120,6 +120,7 @@ describe('보너스패', () => {
     expect(capturedIds(s)).toEqual(['bonus-1']);
     expect(s.players[0]!.hand.map((c) => c.id).sort()).toEqual(['01-gwang', '07-pi-1']);
     expect(s.lastReport!.specials).toEqual(['bonus']);
+    expect(s.lastReport!.drawn?.id).toBe('07-pi-1');
     // 이어서 일반 패를 내고 턴 종료
     const s2 = runTurn(s, '01-gwang');
     expect(s2.current).toBe(1);

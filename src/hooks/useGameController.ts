@@ -284,7 +284,8 @@ export function useGameController(settings: Settings) {
     const special = r.specials[r.specials.length - 1];
 
     if (special) {
-      const tag = r.specials.map((e) => SPECIAL_TEXT[e]).join(' ');
+      // 보너스패를 손에서 냈으면 더미에서 1장 받은 것까지 알려 준다
+      const tag = r.specials.map((e) => (e === 'bonus' && r.drawn ? '보너스! 1장 받기' : SPECIAL_TEXT[e])).join(' ');
       const talk = actor.isHuman ? undefined : line(actor.id, special);
       say(actor.id, talk ? `${tag} ${talk.startsWith(tag) ? talk.slice(tag.length).trim() : talk}` : tag);
     } else if (!actor.isHuman) {

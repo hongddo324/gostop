@@ -146,11 +146,17 @@ export function mcChooseCard(s: GameState, opts: McOptions = DEFAULT_MC): HwatuC
 
 /** 고/스톱: 지금 멈췄을 때 금액 vs 고 했을 때의 기대 금액 */
 export function mcDecideGo(s: GameState, opts: McOptions = DEFAULT_MC): boolean {
-  const me = currentPlayer(s);
-  if (me.hand.length === 0) return false;
-  const [stop, go] = evaluateActions(s, me.seat.id, [false, true], (world, g) => declareGoStop(world, g), opts);
+  const ev = mcGoStopEv(s, opts);
   // 고는 되돌릴 수 없으니 조금 더 확실할 때만
-  return go! > stop! + 0.4;
+  return !!ev && ev.go > ev.stop + 0.4;
+}
+
+/** 고 / 스톱 각각의 기대 금액(점). 낼 패가 없으면 고를 할 수 없어 undefined */
+export function mcGoStopEv(s: GameState, opts: McOptions = DEFAULT_MC): { go: number; stop: number } | undefined {
+  const me = currentPlayer(s);
+  if (me.hand.length === 0) return undefined;
+  const [stop, go] = evaluateActions(s, me.seat.id, [false, true], (world, g) => declareGoStop(world, g), opts);
+  return { go: go!, stop: stop! };
 }
 
 /** 같은 월 2장 중 선택: 상대 리치 패 우선, 아니면 값진 패 */

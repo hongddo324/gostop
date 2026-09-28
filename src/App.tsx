@@ -4,6 +4,7 @@ import { Board } from './components/Board';
 import { CardZoom } from './components/CardZoom';
 import { CharacterSeat } from './components/CharacterSeat';
 import { CharacterSprite } from './components/CharacterSprite';
+import { DrawFly } from './components/DrawFly';
 import { ChoiceModal, GoStopModal, ResultModal } from './components/Modals';
 import { HintPanel } from './components/HintPanel';
 import { KakaoChat } from './components/KakaoChat';
@@ -12,7 +13,8 @@ import { MyHand } from './components/MyHand';
 import { SettingsModal } from './components/SettingsModal';
 import { StageContainer } from './components/StageContainer';
 import { TitleScreen } from './components/TitleScreen';
-import { CHARACTER_PLACEMENT, CHAT_POS, EXIT_DX, MONEY_POS, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
+import { CHARACTER_PLACEMENT, CHAT_POS, DECK_POS, EXIT_DX, MAT_CARD, MAT_H, MAT_QUAD, MAT_W, MONEY_POS, NAME_TAG_POS, PLAY_ORIGIN } from './config/layout';
+import { projectPoint } from './lib/homography';
 import { SCENE_SHIFT, STAGE_HEIGHT, STAGE_WIDTH } from './config/stage';
 import { renderHintVoice } from './content/hintVoice';
 import { exitApp, onBackButton } from './lib/exitApp';
@@ -101,6 +103,18 @@ export default function App() {
     setMoney({ game, result });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game]);
+  // 보너스패를 내고 더미에서 1장 받을 때: 뒷면 카드가 더미 → 받는 사람 손으로 날아감 (+ 내 손패엔 NEW 표시)
+  const [drawFx, setDrawFx] = useState<{ seq: number; seatId: string; cardId: string } | null>(null);
+  useEffect(() => {
+    const r = game?.lastReport;
+    if (!r?.drawn || r.seq === drawFx?.seq) return;
+    setDrawFx({ seq: r.seq, seatId: r.seatId, cardId: r.drawn.id });
+    const id = setTimeout(() => setDrawFx((f) => (f?.seq === r.seq ? null : f)), 2200);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.lastReport]);
+  const drawSeat = drawFx ? SEATS.find((x) => x.id === drawFx.seatId) : undefined;
+
   const moneyDelta = (seatId: string) => (game?.phase === 'end' && money?.game === game ? money.result.deltas[seatId] : undefined);
 
   const handleDeal = () => {
@@ -283,7 +297,17 @@ export default function App() {
         recommendedId={hint?.recommendedCardId}
         money={wallets[ME.id] ?? 0}
         moneyDelta={moneyDelta(ME.id)}
+        newCardId={drawFx?.seatId === ME.id ? drawFx.cardId : undefined}
       />
+
+      {drawFx && drawSeat && (
+        <DrawFly
+          key={drawFx.seq}
+          from={shift(projectPoint(MAT_W, MAT_H, MAT_QUAD, DECK_CENTER.x, DECK_CENTER.y))}
+          to={shift(PLAY_ORIGIN[drawSeat.position])}
+          ms={Math.max(450, timing.cardMove)}
+        />
+      )}
 
       {/* HUD */}
       <div className="absolute left-4 top-3 z-40 rounded-xl bg-black/45 px-3 py-1.5 text-white">
@@ -353,3 +377,8 @@ export default function App() {
     </StageContainer>
   );
 }
+
+/** 더미 중심 (모포 평면 좌표) */
+const DECK_CENTER = { x: DECK_POS.x + MAT_CARD.w / 2, y: DECK_POS.y + MAT_CARD.h / 2 };
+/** 배경 좌표 → 스테이지 좌표 (장면을 손패 패널 높이만큼 위로 올려 그림) */
+const shift = (p: { x: number; y: number }) => ({ x: p.x, y: p.y - SCENE_SHIFT });

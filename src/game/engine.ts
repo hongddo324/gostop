@@ -72,6 +72,7 @@ function playBonus(s: GameState, card: HwatuCard): GameState {
       stolen: [],
       scoreBefore,
       scoreAfter: scoreOf(captured).total,
+      drawn: draw,
     },
   };
   if (hand.length > 0) return next; // 같은 차례에 한 장 더 낸다

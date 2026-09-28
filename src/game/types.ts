@@ -90,6 +90,8 @@ export interface TurnReport {
   readonly stolen: { fromSeatId: string; card: HwatuCard }[];
   readonly scoreBefore: number;
   readonly scoreAfter: number;
+  /** 보너스패를 손에서 냈을 때 더미에서 손패로 받은 1장 */
+  readonly drawn?: HwatuCard;
 }
 
 export interface LoserSettlement {
